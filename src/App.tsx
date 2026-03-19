@@ -1,51 +1,127 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useEffect, useState } from "react";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+type HealthResponse = {
+  status: string;
+};
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+export default function App() {
+  const [backendStatus, setBackendStatus] = useState<"checking" | "ok" | "offline">("checking");
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/health")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("health check failed");
+        return (await res.json()) as HealthResponse;
+      })
+      .then((data) => {
+        setBackendStatus(data.status === "ok" ? "ok" : "offline");
+      })
+      .catch(() => {
+        setBackendStatus("offline");
+      });
+  }, []);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div style={styles.app}>
+      <aside style={styles.left}>
+        <div>
+          <h1 style={styles.h1}>Hardware Copilot</h1>
+          <p style={styles.muted}>v1 workspace</p>
+        </div>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+        <nav style={styles.nav}>
+          <button style={styles.navButton}>Dashboard</button>
+          <button style={styles.navButton}>Design Workspace</button>
+          <button style={styles.navButton}>Components</button>
+          <button style={styles.navButton}>Validation</button>
+          <button style={styles.navButton}>Settings</button>
+        </nav>
+      </aside>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+      <main style={styles.main}>
+        <div style={styles.card}>
+          <h2 style={styles.h2}>Workspace</h2>
+          <p style={styles.text}>
+            Backend status: <strong>{backendStatus}</strong>
+          </p>
+          <p style={styles.muted}>
+            Nächster Schritt: App Shell mit ChatPanel, DesignTree und Inspector.
+          </p>
+        </div>
+      </main>
+
+      <aside style={styles.right}>
+        <h3 style={styles.h3}>Inspector</h3>
+        <p style={styles.muted}>Noch leer.</p>
+      </aside>
+    </div>
   );
 }
 
-export default App;
+const styles: Record<string, React.CSSProperties> = {
+  app: {
+    minHeight: "100vh",
+    display: "grid",
+    gridTemplateColumns: "240px 1fr 320px",
+    background: "#09090b",
+    color: "#f4f4f5",
+    fontFamily: "Inter, system-ui, sans-serif",
+  },
+  left: {
+    borderRight: "1px solid #27272a",
+    padding: 16,
+    display: "flex",
+    flexDirection: "column",
+    gap: 24,
+    background: "#0f0f12",
+  },
+  main: {
+    padding: 24,
+  },
+  right: {
+    borderLeft: "1px solid #27272a",
+    padding: 16,
+    background: "#0f0f12",
+  },
+  h1: {
+    fontSize: 20,
+    margin: 0,
+  },
+  h2: {
+    fontSize: 22,
+    marginTop: 0,
+  },
+  h3: {
+    fontSize: 14,
+    marginTop: 0,
+    color: "#e4e4e7",
+  },
+  muted: {
+    color: "#a1a1aa",
+    fontSize: 14,
+  },
+  text: {
+    fontSize: 15,
+    color: "#e4e4e7",
+  },
+  nav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  navButton: {
+    background: "#18181b",
+    color: "#f4f4f5",
+    border: "1px solid #27272a",
+    borderRadius: 10,
+    padding: "10px 12px",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  card: {
+    background: "#111114",
+    border: "1px solid #27272a",
+    borderRadius: 16,
+    padding: 24,
+  },
+};
