@@ -6,38 +6,50 @@ export type TrustLevel =
   | "proven"
   | "trusted_template";
 
-export type ValidationSeverity = "error" | "warning" | "info";
+export type ValidationSeverity =
+  | "info"
+  | "warning"
+  | "error"
+  | "review_required";
 
 export type Requirement = {
   id: string;
-  text: string;
+  title: string;
+  description: string;
+  status: string;
 };
 
 export type DesignBlock = {
   id: string;
   name: string;
-  description?: string;
-  status: "draft" | "reviewed" | "frozen";
+  description: string;
+  trustLevel: TrustLevel;
 };
 
 export type ComponentItem = {
   id: string;
-  ref: string;
   name: string;
-  category: string;
+  value?: string | null;
+  package?: string | null;
+  manufacturer?: string | null;
+  mpn?: string | null;
+  description: string;
   trustLevel: TrustLevel;
+  blockId?: string | null;
 };
 
 export type ValidationIssue = {
   id: string;
-  title: string;
-  description: string;
   severity: ValidationSeverity;
+  title: string;
+  message: string;
+  relatedKind?: "requirement" | "block" | "component" | null;
+  relatedId?: string | null;
 };
 
 export type ChatMessage = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 };
 
@@ -48,9 +60,8 @@ export type Selection =
   | null;
 
 export type ProjectState = {
-  id: string;
   name: string;
-  phase: "spec" | "draft" | "review" | "freeze" | "export";
+  phase: string;
   requirements: Requirement[];
   blocks: DesignBlock[];
   components: ComponentItem[];
