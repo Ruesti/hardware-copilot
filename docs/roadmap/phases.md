@@ -84,7 +84,7 @@ Connect the frontend to a real backend endpoint.
 ---
 
 ## Phase 3.1 — Backend Model Hardening
-**Status:** active / next
+**Status:** done / baseline
 
 ### Goal
 Stabilize the backend contract before feature growth.
@@ -94,11 +94,13 @@ Stabilize the backend contract before feature growth.
 - validated response schemas
 - cleaner API structure
 - closer alignment between backend models and frontend types
+- frontend project state loaded from backend API
+- mock-based root app state removed
 
 ---
 
 ## Phase 3.2 — Domain API Expansion
-**Status:** planned
+**Status:** active / next
 
 ### Goal
 Expand the backend from one project endpoint to domain-oriented APIs.

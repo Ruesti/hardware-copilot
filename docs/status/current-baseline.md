@@ -40,9 +40,11 @@ Currently working:
 - the desktop shell exists
 - the React frontend is running
 - the FastAPI backend is running
-- the frontend loads project data from the backend
+- the frontend loads project data from the backend API
 - the design workspace is interactive
 - the inspector reacts to selected entities
+- the backend exposes a typed project response model
+- frontend and backend project fields are aligned in camelCase at the API boundary
 
 This means the project has moved beyond static UI mockup stage.
 
@@ -65,6 +67,7 @@ This means the project has moved beyond static UI mockup stage.
 ### Backend
 - Python
 - FastAPI
+- Pydantic models for API responses
 
 ### Later / planned
 - SQLite
@@ -100,7 +103,8 @@ This architectural assumption is central to the project.
 hardware-copilot/
 ├── backend/
 │   ├── app/
-│   │   └── main.py
+│   │   ├── main.py
+│   │   └── models.py
 │   ├── requirements.txt
 │   └── .venv/
 ├── src/
@@ -118,8 +122,6 @@ hardware-copilot/
 │   │   └── ui/
 │   │       ├── Panel.tsx
 │   │       └── StatusBadge.tsx
-│   ├── data/
-│   │   └── mockProject.ts
 │   ├── types/
 │   │   └── project.ts
 │   ├── App.tsx
