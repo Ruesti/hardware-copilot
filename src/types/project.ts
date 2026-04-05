@@ -6,12 +6,6 @@ export type TrustLevel =
   | "proven"
   | "trusted_template";
 
-export type ValidationSeverity =
-  | "info"
-  | "warning"
-  | "error"
-  | "review_required";
-
 export type Requirement = {
   id: string;
   title: string;
@@ -29,22 +23,13 @@ export type DesignBlock = {
 export type ComponentItem = {
   id: string;
   name: string;
-  value?: string | null;
-  package?: string | null;
-  manufacturer?: string | null;
-  mpn?: string | null;
+  value: string | null;
+  package: string | null;
+  manufacturer: string | null;
+  mpn: string | null;
   description: string;
   trustLevel: TrustLevel;
-  blockId?: string | null;
-};
-
-export type ValidationIssue = {
-  id: string;
-  severity: ValidationSeverity;
-  title: string;
-  message: string;
-  relatedKind?: "requirement" | "block" | "component" | null;
-  relatedId?: string | null;
+  blockId: string | null;
 };
 
 export type ChatMessage = {
@@ -53,10 +38,25 @@ export type ChatMessage = {
   content: string;
 };
 
+export type RequirementSelection = {
+  kind: "requirement";
+  id: string;
+};
+
+export type BlockSelection = {
+  kind: "block";
+  id: string;
+};
+
+export type ComponentSelection = {
+  kind: "component";
+  id: string;
+};
+
 export type Selection =
-  | { kind: "requirement"; id: string }
-  | { kind: "block"; id: string }
-  | { kind: "component"; id: string }
+  | RequirementSelection
+  | BlockSelection
+  | ComponentSelection
   | null;
 
 export type ProjectState = {
@@ -64,7 +64,5 @@ export type ProjectState = {
   phase: string;
   requirements: Requirement[];
   blocks: DesignBlock[];
-  components: ComponentItem[];
-  validationIssues: ValidationIssue[];
   chatMessages: ChatMessage[];
 };

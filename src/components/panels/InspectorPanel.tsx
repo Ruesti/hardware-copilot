@@ -1,13 +1,18 @@
 import { Panel } from "../ui/Panel";
 import { StatusBadge } from "../ui/StatusBadge";
-import type { ProjectState, Selection } from "../../types/project";
+import type { ProjectState, Selection, ComponentItem } from "../../types/project";
 
 type InspectorPanelProps = {
   project: ProjectState;
+  components: ComponentItem[];
   selection: Selection;
 };
 
-export function InspectorPanel({ project, selection }: InspectorPanelProps) {
+export function InspectorPanel({
+  project,
+  components,
+  selection,
+}: InspectorPanelProps) {
   let title = "Nothing selected";
   let details = "Select a requirement, block or component in the workspace.";
   let badgeLabel: string | null = null;
@@ -27,7 +32,7 @@ export function InspectorPanel({ project, selection }: InspectorPanelProps) {
     const req = project.requirements.find((r) => r.id === selection.id);
     if (req) {
       title = "Requirement";
-      details = req.text;
+      details = req.description;
       badgeLabel = "input";
       badgeTone = "neutral";
     }
@@ -38,16 +43,16 @@ export function InspectorPanel({ project, selection }: InspectorPanelProps) {
     if (block) {
       title = block.name;
       details = block.description ?? "No description available.";
-      badgeLabel = block.status;
-      badgeTone = "neutral";
+      badgeLabel = block.trustLevel;
+      badgeTone = block.trustLevel;
     }
   }
 
   if (selection?.kind === "component") {
-    const comp = project.components.find((c) => c.id === selection.id);
+    const comp = components.find((c) => c.id === selection.id);
     if (comp) {
-      title = `${comp.ref} · ${comp.name}`;
-      details = comp.category;
+      title = comp.name;
+      details = comp.description || comp.value || "No description available.";
       badgeLabel = comp.trustLevel;
       badgeTone = comp.trustLevel;
     }
@@ -114,9 +119,7 @@ export function InspectorPanel({ project, selection }: InspectorPanelProps) {
             <br />
             Blocks: {project.blocks.length}
             <br />
-            Components: {project.components.length}
-            <br />
-            Issues: {project.validationIssues.length}
+            Components: {components.length}
           </div>
         </section>
       </div>

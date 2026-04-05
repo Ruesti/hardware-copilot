@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "./components/layout/AppShell";
-import type { ProjectState, Selection } from "./types/project";
-
-const API_BASE_URL = "http://127.0.0.1:8000";
+import { fetchProject } from "./api/project";
+import { fetchComponents } from "./api/components";
+import type { ProjectState, Selection, ComponentItem } from "./types/project";
 
 function App() {
   const [project, setProject] = useState<ProjectState | null>(null);
+  const [components, setComponents] = useState<ComponentItem[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,26 +14,24 @@ function App() {
   useEffect(() => {
     let isCancelled = false;
 
-    const loadProject = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/project`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to load project: HTTP ${response.status}`);
-        }
-
-        const data: ProjectState = await response.json();
+        const [projectData, componentsResponse] = await Promise.all([
+          fetchProject(),
+          fetchComponents(),
+        ]);
 
         if (!isCancelled) {
-          setProject(data);
+          setProject(projectData);
+          setComponents(componentsResponse.items);
         }
       } catch (err) {
-        console.error("Failed to load project:", err);
+        console.error("Failed to load app data:", err);
 
-        let message = "Unknown error while loading project";
+        let message = "Unknown error while loading app data";
 
         if (err instanceof Error) {
           message = err.message;
@@ -47,6 +46,7 @@ function App() {
         if (!isCancelled) {
           setError(message);
           setProject(null);
+          setComponents([]);
         }
       } finally {
         if (!isCancelled) {
@@ -55,7 +55,7 @@ function App() {
       }
     };
 
-    loadProject();
+    loadData();
 
     return () => {
       isCancelled = true;
@@ -119,7 +119,7 @@ function App() {
               lineHeight: 1.5,
             }}
           >
-            The project could not be loaded from the backend.
+            The project data could not be loaded from the backend.
           </p>
 
           <pre
@@ -162,6 +162,7 @@ function App() {
   return (
     <AppShell
       project={project}
+      components={components}
       selection={selection}
       onSelect={setSelection}
     />

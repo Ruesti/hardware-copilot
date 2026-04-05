@@ -50,7 +50,7 @@ export function DesignTreePanel({
                     cursor: "pointer",
                   }}
                 >
-                  {item.text}
+                  {item.description}
                 </div>
               );
             })}
@@ -87,7 +87,7 @@ export function DesignTreePanel({
                     }}
                   >
                     <div style={{ fontWeight: 600 }}>{block.name}</div>
-                    <StatusBadge label={block.status} />
+                    <StatusBadge label={block.trustLevel} tone={block.trustLevel} />
                   </div>
                   {block.description ? (
                     <div
@@ -132,11 +132,9 @@ export function DesignTreePanel({
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 600 }}>
-                      {component.ref} · {component.name}
-                    </div>
+                    <div style={{ fontWeight: 600 }}>{component.name}</div>
                     <div style={{ fontSize: 13, color: "#a1a1aa", marginTop: 4 }}>
-                      {component.category}
+                      {component.description || component.value || "No details available."}
                     </div>
                   </div>
                   <StatusBadge

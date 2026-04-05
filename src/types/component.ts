@@ -1,10 +1,4 @@
-export type ComponentItem = {
-  id: string;
-  name: string;
-  category: string;
-  trustLevel: string;
-  status: string;
-};
+import type { ComponentItem } from "./project";
 
 export type ComponentsResponse = {
   items: ComponentItem[];

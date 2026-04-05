@@ -99,6 +99,12 @@ class ProjectState(ApiModel):
 
     requirements: list[Requirement] = Field(default_factory=list)
     blocks: list[DesignBlock] = Field(default_factory=list)
-    components: list[ComponentItem] = Field(default_factory=list)
-    validation_issues: list[ValidationIssue] = Field(default_factory=list)
     chat_messages: list[ChatMessage] = Field(default_factory=list)
+
+
+class ValidationResponse(ApiModel):
+    items: list[ValidationIssue] = Field(default_factory=list)
+
+
+class ComponentsResponse(ApiModel):
+    items: list[ComponentItem] = Field(default_factory=list)

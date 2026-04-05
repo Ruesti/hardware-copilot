@@ -1,20 +1,22 @@
-import type { ProjectState, Selection } from "../../types/project";
+import type { ProjectState, Selection, ComponentItem } from "../../types/project";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { WorkspaceLayout } from "./WorkspaceLayout";
 import { ChatPanel } from "../panels/ChatPanel";
 import { DesignTreePanel } from "../panels/DesignTreePanel";
 import { InspectorPanel } from "../panels/InspectorPanel";
-import { ValidationPanel } from "../panels/ValidationPanel";
+import ValidationPanel from "../panels/ValidationPanel";
 
 type AppShellProps = {
   project: ProjectState;
+  components: ComponentItem[];
   selection: Selection;
   onSelect: (selection: Selection) => void;
 };
 
 export function AppShell({
   project,
+  components,
   selection,
   onSelect,
 }: AppShellProps) {
@@ -47,7 +49,7 @@ export function AppShell({
               <DesignTreePanel
                 requirements={project.requirements}
                 blocks={project.blocks}
-                components={project.components}
+                components={components}
                 selection={selection}
                 onSelect={onSelect}
               />
@@ -55,10 +57,11 @@ export function AppShell({
             right={
               <InspectorPanel
                 project={project}
+                components={components}
                 selection={selection}
               />
             }
-            bottom={<ValidationPanel issues={project.validationIssues} />}
+            bottom={<ValidationPanel />}
           />
         </div>
       </div>
