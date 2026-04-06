@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import (
-    BlocksResponse,
     ChatMessage,
     ComponentItem,
     ComponentsResponse,
@@ -45,29 +44,6 @@ def build_demo_requirements() -> list[Requirement]:
             title="Presence detection",
             description="The system shall detect human presence.",
             status="open",
-        ),
-    ]
-
-
-def build_demo_blocks() -> list[DesignBlock]:
-    return [
-        DesignBlock(
-            id="blk-1",
-            name="24V Input Protection",
-            description="Input polarity and surge protection stage.",
-            trust_level=TrustLevel.REVIEWED,
-        ),
-        DesignBlock(
-            id="blk-2",
-            name="Buck 24V to 5V",
-            description="Primary step-down conversion.",
-            trust_level=TrustLevel.PARSED,
-        ),
-        DesignBlock(
-            id="blk-3",
-            name="ESP32-C3 Core",
-            description="Main control and connectivity block.",
-            trust_level=TrustLevel.NEW,
         ),
     ]
 
@@ -120,6 +96,26 @@ def get_project() -> ProjectState:
     return ProjectState(
         name="24V Presence Sensor",
         phase="Phase 3.2 — Domain API Expansion",
+        blocks=[
+            DesignBlock(
+                id="blk-1",
+                name="24V Input Protection",
+                description="Input polarity and surge protection stage.",
+                trust_level=TrustLevel.REVIEWED,
+            ),
+            DesignBlock(
+                id="blk-2",
+                name="Buck 24V to 5V",
+                description="Primary step-down conversion.",
+                trust_level=TrustLevel.PARSED,
+            ),
+            DesignBlock(
+                id="blk-3",
+                name="ESP32-C3 Core",
+                description="Main control and connectivity block.",
+                trust_level=TrustLevel.NEW,
+            ),
+        ],
         chat_messages=[
             ChatMessage(
                 id="msg-1",
@@ -133,11 +129,6 @@ def get_project() -> ProjectState:
 @app.get("/requirements", response_model=RequirementsResponse)
 def get_requirements() -> RequirementsResponse:
     return RequirementsResponse(items=build_demo_requirements())
-
-
-@app.get("/blocks", response_model=BlocksResponse)
-def get_blocks() -> BlocksResponse:
-    return BlocksResponse(items=build_demo_blocks())
 
 
 @app.get("/validation", response_model=ValidationResponse)

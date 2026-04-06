@@ -1,7 +1,6 @@
 import type {
   ProjectState,
   Requirement,
-  DesignBlock,
   Selection,
   ComponentItem,
 } from "../../types/project";
@@ -16,7 +15,6 @@ import ValidationPanel from "../panels/ValidationPanel";
 type AppShellProps = {
   project: ProjectState;
   requirements: Requirement[];
-  blocks: DesignBlock[];
   components: ComponentItem[];
   selection: Selection;
   onSelect: (selection: Selection) => void;
@@ -25,7 +23,6 @@ type AppShellProps = {
 export function AppShell({
   project,
   requirements,
-  blocks,
   components,
   selection,
   onSelect,
@@ -58,7 +55,7 @@ export function AppShell({
             center={
               <DesignTreePanel
                 requirements={requirements}
-                blocks={blocks}
+                blocks={project.blocks}
                 components={components}
                 selection={selection}
                 onSelect={onSelect}
@@ -66,12 +63,11 @@ export function AppShell({
             }
             right={
               <InspectorPanel
-                project={project}
-                requirements={requirements}
-                blocks={blocks}
-                components={components}
-                selection={selection}
-              />
+  project={project}
+  requirements={requirements}
+  components={components}
+  selection={selection}
+/>
             }
             bottom={<ValidationPanel />}
           />

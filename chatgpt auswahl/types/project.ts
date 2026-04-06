@@ -24,10 +24,6 @@ export type DesignBlock = {
   trustLevel: TrustLevel;
 };
 
-export type BlocksResponse = {
-  items: DesignBlock[];
-};
-
 export type ComponentItem = {
   id: string;
   name: string;
@@ -70,5 +66,6 @@ export type Selection =
 export type ProjectState = {
   name: string;
   phase: string;
+  blocks: DesignBlock[];
   chatMessages: ChatMessage[];
 };

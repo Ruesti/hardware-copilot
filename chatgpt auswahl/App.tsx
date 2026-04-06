@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { fetchProject } from "./api/project";
-import { fetchRequirements } from "./api/requirements";
-import { fetchBlocks } from "./api/blocks";
 import { fetchComponents } from "./api/components";
+import { fetchRequirements } from "./api/requirements";
 import type {
   ProjectState,
   Requirement,
-  DesignBlock,
   Selection,
   ComponentItem,
 } from "./types/project";
@@ -15,7 +13,6 @@ import type {
 function App() {
   const [project, setProject] = useState<ProjectState | null>(null);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [blocks, setBlocks] = useState<DesignBlock[]>([]);
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,22 +26,16 @@ function App() {
       setError(null);
 
       try {
-        const [
-          projectData,
-          requirementsResponse,
-          blocksResponse,
-          componentsResponse,
-        ] = await Promise.all([
-          fetchProject(),
-          fetchRequirements(),
-          fetchBlocks(),
-          fetchComponents(),
-        ]);
+        const [projectData, requirementsResponse, componentsResponse] =
+          await Promise.all([
+            fetchProject(),
+            fetchRequirements(),
+            fetchComponents(),
+          ]);
 
         if (!isCancelled) {
           setProject(projectData);
           setRequirements(requirementsResponse.items);
-          setBlocks(blocksResponse.items);
           setComponents(componentsResponse.items);
         }
       } catch (err) {
@@ -66,7 +57,6 @@ function App() {
           setError(message);
           setProject(null);
           setRequirements([]);
-          setBlocks([]);
           setComponents([]);
         }
       } finally {
@@ -184,7 +174,6 @@ function App() {
     <AppShell
       project={project}
       requirements={requirements}
-      blocks={blocks}
       components={components}
       selection={selection}
       onSelect={setSelection}

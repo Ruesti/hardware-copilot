@@ -96,15 +96,12 @@ Selection = RequirementSelection | BlockSelection | ComponentSelection | None
 class ProjectState(ApiModel):
     name: str
     phase: str
+    blocks: list[DesignBlock] = Field(default_factory=list)
     chat_messages: list[ChatMessage] = Field(default_factory=list)
 
 
 class RequirementsResponse(ApiModel):
     items: list[Requirement] = Field(default_factory=list)
-
-
-class BlocksResponse(ApiModel):
-    items: list[DesignBlock] = Field(default_factory=list)
 
 
 class ValidationResponse(ApiModel):

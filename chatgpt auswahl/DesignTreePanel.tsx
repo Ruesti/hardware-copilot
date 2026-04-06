@@ -87,10 +87,7 @@ export function DesignTreePanel({
                     }}
                   >
                     <div style={{ fontWeight: 600 }}>{block.name}</div>
-                    <StatusBadge
-                      label={block.trustLevel}
-                      tone={block.trustLevel}
-                    />
+                    <StatusBadge label={block.trustLevel} tone={block.trustLevel} />
                   </div>
                   {block.description ? (
                     <div

@@ -3,7 +3,6 @@ import { StatusBadge } from "../ui/StatusBadge";
 import type {
   ProjectState,
   Requirement,
-  DesignBlock,
   Selection,
   ComponentItem,
 } from "../../types/project";
@@ -11,7 +10,6 @@ import type {
 type InspectorPanelProps = {
   project: ProjectState;
   requirements: Requirement[];
-  blocks: DesignBlock[];
   components: ComponentItem[];
   selection: Selection;
 };
@@ -19,7 +17,6 @@ type InspectorPanelProps = {
 export function InspectorPanel({
   project,
   requirements,
-  blocks,
   components,
   selection,
 }: InspectorPanelProps) {
@@ -49,7 +46,7 @@ export function InspectorPanel({
   }
 
   if (selection?.kind === "block") {
-    const block = blocks.find((b) => b.id === selection.id);
+    const block = project.blocks.find((b) => b.id === selection.id);
     if (block) {
       title = block.name;
       details = block.description ?? "No description available.";
@@ -127,11 +124,9 @@ export function InspectorPanel({
           <div style={{ fontSize: 14, color: "#d4d4d8", lineHeight: 1.6 }}>
             Requirements: {requirements.length}
             <br />
-            Blocks: {blocks.length}
+            Blocks: {project.blocks.length}
             <br />
             Components: {components.length}
-            <br />
-            Messages: {project.chatMessages.length}
           </div>
         </section>
       </div>
