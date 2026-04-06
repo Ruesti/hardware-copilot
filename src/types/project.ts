@@ -13,6 +13,10 @@ export type Requirement = {
   status: string;
 };
 
+export type RequirementsResponse = {
+  items: Requirement[];
+};
+
 export type DesignBlock = {
   id: string;
   name: string;
@@ -62,7 +66,6 @@ export type Selection =
 export type ProjectState = {
   name: string;
   phase: string;
-  requirements: Requirement[];
   blocks: DesignBlock[];
   chatMessages: ChatMessage[];
 };

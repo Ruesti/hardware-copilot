@@ -15,18 +15,40 @@ Use this file to understand:
 
 ---
 
-## Project Goal
+## Project Direction
 
 Hardware Copilot is intended as a desktop-first engineering workbench for hardware-related development.
 
-The current concept is based on:
-- chat-based requirement input
-- structured technical drafting instead of freeform output only
-- component handling with trust levels
-- validation-centered design workflow
-- later deterministic KiCad generation from an internal model
+It is not primarily a chat assistant.
+Its core direction is to become a technical derivation and implementation system based on reliable engineering data.
 
-The planned high-level pipeline is:
+The long-term goal is not only to discuss designs, but to support increasingly structured and later partially autonomous design implementation.
+
+This implies:
+- technical sources must become structured and reusable
+- engineering decisions should be based on explicit data, rules, and validations
+- design output should move from freeform text toward deterministic intermediate representations
+
+---
+
+## Core Architectural Principle
+
+The current architecture is intentionally not based on letting an LLM directly generate KiCad schematic files.
+
+Instead, the intended system flow is:
+
+1. collect requirements in chat
+2. derive a structured specification
+3. derive functional blocks
+4. select components
+5. add standard support circuits
+6. validate assumptions and rules
+7. produce an internal intermediate model
+8. later generate KiCad files deterministically
+
+This architectural assumption is central to the project.
+
+High-level pipeline:
 
 `Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
 
@@ -47,6 +69,63 @@ Currently working:
 - frontend and backend project fields are aligned in camelCase at the API boundary
 
 This means the project has moved beyond static UI mockup stage.
+
+The current system already demonstrates:
+- a working desktop shell
+- a working frontend/backend connection
+- a typed backend contract
+- a first separation between UI state and backend state
+
+---
+
+## Current Development Position
+
+The project is currently beyond foundation setup and early backend connection work.
+
+Completed baseline phases:
+- Phase 1 — Foundation Setup
+- Phase 2 — Workbench Shell
+- Phase 2.5 — Interactive Selection Layer
+- Phase 3 — Initial Backend Integration
+- Phase 3.1 — Backend Model Hardening
+
+Current active direction:
+- Phase 3.2 — Domain API Expansion
+
+This means the immediate next step is no longer generic UI work.
+The immediate next step is to separate the backend into clearer engineering domains such as project data, component data, and validation data.
+
+---
+
+## What the System Can Do Today
+
+At the current baseline, Hardware Copilot can:
+- run as a desktop application shell
+- display a structured workbench UI
+- load a project from the backend
+- show project requirements and blocks
+- react to interactive selection in the design workspace
+- show inspector content based on selected entities
+- expose typed project data from the backend to the frontend
+
+This is enough to prove the architectural foundation, but not yet enough to support real engineering workflows.
+
+---
+
+## What the System Cannot Do Yet
+
+At the current baseline, Hardware Copilot does not yet provide:
+- persistent project storage
+- a real technical component knowledge base
+- structured datasheet or application-note ingestion
+- source-backed component comparison
+- rule-backed engineering validation
+- structured draft derivation from chat input
+- deterministic export model generation
+- KiCad schematic generation
+- traceable technical decision history across real projects
+
+These are still future capabilities.
 
 ---
 
@@ -78,22 +157,21 @@ This means the project has moved beyond static UI mockup stage.
 
 ---
 
-## Current Architectural Direction
+## Current Architectural Direction in Practice
 
-The current architecture is intentionally not based on letting an LLM directly generate KiCad schematic files.
+The practical implication of the current baseline is:
 
-Instead, the intended system flow is:
+- chat is currently only an entry surface, not yet the engineering engine
+- backend models are becoming the stable contract
+- domain separation is beginning
+- validation is present as a structural idea, but not yet a real engineering reasoning layer
+- components are present as a concept, but not yet a trustworthy technical knowledge base
 
-1. collect requirements in chat
-2. derive a structured specification
-3. derive functional blocks
-4. select components
-5. add standard support circuits
-6. validate assumptions and rules
-7. produce an internal intermediate model
-8. later generate KiCad files deterministically
+So the project is currently in the transition from:
+- connected demo baseline
 
-This architectural assumption is central to the project.
+toward:
+- structured engineering system
 
 ---
 

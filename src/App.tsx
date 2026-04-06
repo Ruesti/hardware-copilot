@@ -2,10 +2,17 @@ import { useEffect, useState } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { fetchProject } from "./api/project";
 import { fetchComponents } from "./api/components";
-import type { ProjectState, Selection, ComponentItem } from "./types/project";
+import { fetchRequirements } from "./api/requirements";
+import type {
+  ProjectState,
+  Requirement,
+  Selection,
+  ComponentItem,
+} from "./types/project";
 
 function App() {
   const [project, setProject] = useState<ProjectState | null>(null);
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,13 +26,16 @@ function App() {
       setError(null);
 
       try {
-        const [projectData, componentsResponse] = await Promise.all([
-          fetchProject(),
-          fetchComponents(),
-        ]);
+        const [projectData, requirementsResponse, componentsResponse] =
+          await Promise.all([
+            fetchProject(),
+            fetchRequirements(),
+            fetchComponents(),
+          ]);
 
         if (!isCancelled) {
           setProject(projectData);
+          setRequirements(requirementsResponse.items);
           setComponents(componentsResponse.items);
         }
       } catch (err) {
@@ -46,6 +56,7 @@ function App() {
         if (!isCancelled) {
           setError(message);
           setProject(null);
+          setRequirements([]);
           setComponents([]);
         }
       } finally {
@@ -162,6 +173,7 @@ function App() {
   return (
     <AppShell
       project={project}
+      requirements={requirements}
       components={components}
       selection={selection}
       onSelect={setSelection}

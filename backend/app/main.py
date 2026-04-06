@@ -8,6 +8,7 @@ from app.models import (
     DesignBlock,
     ProjectState,
     Requirement,
+    RequirementsResponse,
     TrustLevel,
     ValidationIssue,
     ValidationResponse,
@@ -28,6 +29,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def build_demo_requirements() -> list[Requirement]:
+    return [
+        Requirement(
+            id="req-1",
+            title="24V supply input",
+            description="The system shall accept a 24V DC input.",
+            status="open",
+        ),
+        Requirement(
+            id="req-2",
+            title="Presence detection",
+            description="The system shall detect human presence.",
+            status="open",
+        ),
+    ]
 
 
 def build_demo_components() -> list[ComponentItem]:
@@ -78,20 +96,6 @@ def get_project() -> ProjectState:
     return ProjectState(
         name="24V Presence Sensor",
         phase="Phase 3.2 — Domain API Expansion",
-        requirements=[
-            Requirement(
-                id="req-1",
-                title="24V supply input",
-                description="The system shall accept a 24V DC input.",
-                status="open",
-            ),
-            Requirement(
-                id="req-2",
-                title="Presence detection",
-                description="The system shall detect human presence.",
-                status="open",
-            ),
-        ],
         blocks=[
             DesignBlock(
                 id="blk-1",
@@ -120,6 +124,11 @@ def get_project() -> ProjectState:
             )
         ],
     )
+
+
+@app.get("/requirements", response_model=RequirementsResponse)
+def get_requirements() -> RequirementsResponse:
+    return RequirementsResponse(items=build_demo_requirements())
 
 
 @app.get("/validation", response_model=ValidationResponse)

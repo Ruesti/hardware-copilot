@@ -50,7 +50,7 @@ class DesignBlock(ApiModel):
 
 class ComponentItem(ApiModel):
     id: str
-    name: str
+    name: str | None = None
     value: str | None = None
     package: str | None = None
     manufacturer: str | None = None
@@ -96,10 +96,12 @@ Selection = RequirementSelection | BlockSelection | ComponentSelection | None
 class ProjectState(ApiModel):
     name: str
     phase: str
-
-    requirements: list[Requirement] = Field(default_factory=list)
     blocks: list[DesignBlock] = Field(default_factory=list)
     chat_messages: list[ChatMessage] = Field(default_factory=list)
+
+
+class RequirementsResponse(ApiModel):
+    items: list[Requirement] = Field(default_factory=list)
 
 
 class ValidationResponse(ApiModel):

@@ -1,15 +1,22 @@
 import { Panel } from "../ui/Panel";
 import { StatusBadge } from "../ui/StatusBadge";
-import type { ProjectState, Selection, ComponentItem } from "../../types/project";
+import type {
+  ProjectState,
+  Requirement,
+  Selection,
+  ComponentItem,
+} from "../../types/project";
 
 type InspectorPanelProps = {
   project: ProjectState;
+  requirements: Requirement[];
   components: ComponentItem[];
   selection: Selection;
 };
 
 export function InspectorPanel({
   project,
+  requirements,
   components,
   selection,
 }: InspectorPanelProps) {
@@ -29,7 +36,7 @@ export function InspectorPanel({
     | "neutral" = "neutral";
 
   if (selection?.kind === "requirement") {
-    const req = project.requirements.find((r) => r.id === selection.id);
+    const req = requirements.find((r) => r.id === selection.id);
     if (req) {
       title = "Requirement";
       details = req.description;
@@ -115,7 +122,7 @@ export function InspectorPanel({
         >
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Project summary</div>
           <div style={{ fontSize: 14, color: "#d4d4d8", lineHeight: 1.6 }}>
-            Requirements: {project.requirements.length}
+            Requirements: {requirements.length}
             <br />
             Blocks: {project.blocks.length}
             <br />

@@ -9,6 +9,27 @@ Rule:
 
 ---
 
+## Architectural Direction
+
+Hardware Copilot is not primarily a chat assistant.
+It is a technical derivation and implementation system based on reliable engineering data.
+
+Core requirement:
+- the system must build and maintain a strong technical data foundation
+- technical sources must be structured, reviewable, and reusable
+- later design steps must be derived from explicit data, rules, and validations
+- the long-term goal is not just explanation, but increasingly autonomous design implementation
+
+This principle applies across all phases.
+
+Each phase should strengthen at least one of the following:
+- technical data foundation
+- structured design derivation
+- validation capability
+- implementation readiness
+
+---
+
 ## Current Status
 
 The project already has a working technical baseline:
@@ -110,6 +131,16 @@ Expand the backend from one project endpoint to domain-oriented APIs.
 - `/validation`
 - later `/projects`
 
+### Phase requirement
+This phase is not only API splitting.
+It must prepare the backend for structured technical knowledge domains.
+
+### Intended outcome
+- project data separated from domain data
+- components represented as explicit technical entities
+- validation represented as explicit engineering feedback
+- backend structure prepared for later source-backed design derivation
+
 ---
 
 ## Phase 4 — Persistence Layer
@@ -125,6 +156,16 @@ Introduce persistent project and component storage.
 - stored trust levels
 - stored validation state
 
+### Phase requirement
+Persistence is not only for storage convenience.
+It is the foundation for reusable technical knowledge and later autonomous design steps.
+
+### Intended outcome
+- technical entities can be stored and reused
+- validation state is persisted
+- trust-related metadata can later be attached to stored entities
+- project state becomes reconstructable beyond a single runtime session
+
 ---
 
 ## Phase 5 — Component Library
@@ -138,6 +179,15 @@ Turn the component area into a real engineering module.
 - filtering by category
 - filtering by trust level
 - component detail views
+
+### Phase requirement
+The component library is not only a browsing interface.
+It is the beginning of the technical knowledge base.
+
+### Intended outcome
+- components carry structured technical metadata
+- components can later reference datasheets, application notes, and trust state
+- component reuse becomes part of the engineering workflow
 
 ---
 
@@ -154,6 +204,14 @@ Turn validation into a core system instead of a passive display area.
 - review-required states
 - expandable validation logic
 
+### Phase requirement
+Validation must evolve into an engineering decision layer, not remain a passive display.
+
+### Intended outcome
+- technical assumptions become explicit
+- conflicts and review-required states become first-class entities
+- validation prepares the system for design autonomy without hiding uncertainty
+
 ---
 
 ## Phase 7 — Structured Chat-to-Draft Workflow
@@ -168,6 +226,14 @@ Convert requirements entered in chat into structured technical draft data.
 - derived functional blocks
 - backend-supported draft generation
 
+### Phase requirement
+Chat input must be transformed into structured engineering data, not remain freeform conversation.
+
+### Intended outcome
+- requirements become structured specification elements
+- structured specification can drive later component selection and validation
+- the system moves from discussion toward derivation
+
 ---
 
 ## Phase 8 — Internal Export Model
@@ -180,6 +246,14 @@ Create a deterministic internal model for later schematic generation.
 - internal JSON export model
 - stable intermediate representation
 - foundation for generator logic
+
+### Phase requirement
+The export model must become the stable internal representation for deterministic implementation.
+
+### Intended outcome
+- internal design intent is stored independently from chat wording
+- downstream generator logic can operate on structured data
+- later implementation becomes less dependent on freeform LLM output
 
 ---
 
@@ -208,6 +282,14 @@ Make trust levels and engineering rules part of the core logic.
 - validated templates
 - component and topology confidence handling
 
+### Phase requirement
+Trust and engineering rules must become part of the core decision logic.
+
+### Intended outcome
+- the system can distinguish between strong, weak, and review-required technical basis
+- rule-backed derivation becomes possible
+- autonomous implementation is constrained by explicit engineering confidence
+
 ---
 
 ## Phase 11 — Real Project Workflows
@@ -222,6 +304,20 @@ Support real engineering project workflows beyond a single demo project.
 - decision tracking
 - freeze states
 - review workflows
+- project knowledge continuity
+- traceable design evolution
+
+---
+
+## Phase Evaluation Rule
+
+A phase is stronger if it improves the core memory / knowledge direction of the project.
+
+For Hardware Copilot:
+- does this phase improve technical data quality?
+- does it improve structured design derivation?
+- does it improve validation?
+- does it improve implementation readiness?
 
 ---
 
