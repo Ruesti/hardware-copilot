@@ -6,6 +6,12 @@ export type TrustLevel =
   | "proven"
   | "trusted_template";
 
+export type ValidationSeverity =
+  | "info"
+  | "warning"
+  | "error"
+  | "review_required";
+
 export type Requirement = {
   id: string;
   title: string;
@@ -38,6 +44,23 @@ export type ComponentItem = {
   description: string;
   trustLevel: TrustLevel;
   blockId: string | null;
+};
+
+export type ComponentsResponse = {
+  items: ComponentItem[];
+};
+
+export type ValidationIssue = {
+  id: string;
+  severity: ValidationSeverity;
+  title: string;
+  message: string;
+  relatedKind: "requirement" | "block" | "component" | null;
+  relatedId: string | null;
+};
+
+export type ValidationResponse = {
+  items: ValidationIssue[];
 };
 
 export type ChatMessage = {
