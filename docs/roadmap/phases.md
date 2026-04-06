@@ -1,326 +1,128 @@
-# Hardware Copilot – Development Phases
+# Hardware Copilot – Phases
 
-Hardware Copilot is developed in clearly separated phases.
+This document tracks the current phased development structure of Hardware Copilot.
 
-Rule:
-- only one phase is active at a time
-- side ideas move to backlog, side threads, or future phases
-- completed phases remain as stable baseline unless explicitly reopened
-
----
-
-## Architectural Direction
-
-Hardware Copilot is not primarily a chat assistant.
-It is a technical derivation and implementation system based on reliable engineering data.
-
-Core requirement:
-- the system must build and maintain a strong technical data foundation
-- technical sources must be structured, reviewable, and reusable
-- later design steps must be derived from explicit data, rules, and validations
-- the long-term goal is not just explanation, but increasingly autonomous design implementation
-
-This principle applies across all phases.
-
-Each phase should strengthen at least one of the following:
-- technical data foundation
-- structured design derivation
-- validation capability
-- implementation readiness
-
----
-
-## Current Status
-
-The project already has a working technical baseline:
-
-- Tauri desktop shell created
-- React + TypeScript frontend active
-- Python + FastAPI backend active
-- core workbench UI implemented
-- selection-driven UI interaction implemented
-- initial backend integration working via `GET /project`
-
-This means the project is no longer in concept stage.
-The next steps build on an existing foundation.
-
----
-
-## Phase 1 — Foundation Setup
-**Status:** done / baseline
-
-### Goal
-Create the technical base for a desktop-first hardware workbench.
-
-### Includes
-- Tauri setup
-- React + TypeScript + Vite frontend
-- FastAPI backend
-- local development scripts
-- reproducible development environment
-
----
-
-## Phase 2 — Workbench Shell
-**Status:** done / baseline
-
-### Goal
-Build the first structured application shell.
-
-### Includes
-- Sidebar
-- TopBar
-- ChatPanel
-- DesignTreePanel
-- InspectorPanel
-- ValidationPanel
-
----
-
-## Phase 2.5 — Interactive Selection Layer
-**Status:** done / baseline
-
-### Goal
-Move from static UI to interactive state-driven UI behavior.
-
-### Includes
-- selection state
-- clickable design items
-- inspector reacting to current selection
-
----
-
-## Phase 3 — Initial Backend Integration
-**Status:** done / baseline
-
-### Goal
-Connect the frontend to a real backend endpoint.
-
-### Includes
-- `GET /health`
-- `GET /project`
-- frontend loads project data from backend
-- mock data is no longer the primary source
+It is intentionally sequential.
+The goal is to reduce drift, avoid unnecessary side branches, and keep the implementation aligned with the current architectural maturity of the project.
 
 ---
 
 ## Phase 3.1 — Backend Model Hardening
-**Status:** done / baseline
+
+**Status:** done  
+**Result:** baseline
 
 ### Goal
-Stabilize the backend contract before feature growth.
+Stabilize the backend model and ensure the frontend consumes typed backend data instead of relying on local mock-only assumptions.
 
-### Includes
-- Pydantic models
-- validated response schemas
-- cleaner API structure
-- closer alignment between backend models and frontend types
-- frontend project state loaded from backend API
-- mock-based root app state removed
+### Summary
+Phase 3.1 established the first stable backend-driven project state.
+
+Delivered:
+- FastAPI backend running
+- typed project response model
+- `GET /project`
+- frontend reads project data from backend
+- trust level and validation data integrated into the UI model
+- inspector behavior aligned with backend-driven state
+
+This phase is completed.
 
 ---
 
 ## Phase 3.2 — Domain API Expansion
-**Status:** active / next
+
+**Status:** done  
+**Result:** baseline
 
 ### Goal
-Expand the backend from one project endpoint to domain-oriented APIs.
+Split the previously larger project payload into separate domain read endpoints so the frontend can evolve away from a monolithic API shape.
 
-### Includes
-- `/components`
-- `/validation`
-- later `/projects`
+### Summary
+Phase 3.2 introduced dedicated domain endpoints and removed direct frontend coupling to `project.requirements` and `project.blocks`.
 
-### Phase requirement
-This phase is not only API splitting.
-It must prepare the backend for structured technical knowledge domains.
+Delivered:
+- `GET /project`
+- `GET /requirements`
+- `GET /blocks`
+- `GET /components`
+- `GET /validation`
 
-### Intended outcome
-- project data separated from domain data
-- components represented as explicit technical entities
-- validation represented as explicit engineering feedback
-- backend structure prepared for later source-backed design derivation
+Current endpoint responsibilities:
+- `/project` returns project-level metadata and chat messages
+- `/requirements` returns requirement items
+- `/blocks` returns block items
+- `/components` returns component items
+- `/validation` returns validation items
+
+Frontend changes:
+- requirements loaded separately
+- blocks loaded separately
+- components loaded separately
+- validation available as a dedicated domain read
+- old direct accesses to `project.requirements` and `project.blocks` removed
+
+This phase is completed.
 
 ---
 
-## Phase 4 — Persistence Layer
-**Status:** planned
+## Phase 4 — Persistent Projects with SQLite
+
+**Status:** active  
+**Result:** current major phase
 
 ### Goal
-Introduce persistent project and component storage.
+Move from a demo-like in-memory single-project state to a persistent SQLite-backed project model while preserving the domain API split introduced in Phase 3.2.
 
-### Includes
-- SQLite integration
-- persistent projects
-- persistent components
-- stored trust levels
-- stored validation state
+### Summary
+Phase 4 is the first persistence phase.
 
-### Phase requirement
-Persistence is not only for storage convenience.
-It is the foundation for reusable technical knowledge and later autonomous design steps.
+It is not about speculative expansion.
+It is about turning the current API structure into a stable application foundation with:
 
-### Intended outcome
-- technical entities can be stored and reused
-- validation state is persisted
-- trust-related metadata can later be attached to stored entities
-- project state becomes reconstructable beyond a single runtime session
+- SQLite as persistent storage
+- explicit project identity
+- project-based routing
+- minimal write capability
+- validation derived from persistent project state
 
----
+### Subphases
 
-## Phase 5 — Component Library
-**Status:** planned
+#### Phase 4.1 — SQLite Backend Foundation
+Introduce SQLite underneath the current read API and move the backend source of truth from in-memory/sample data to persistent storage.
 
-### Goal
-Turn the component area into a real engineering module.
+See:
+- `docs/phases/phase-4-1-sqlite-backend-foundation.md`
 
-### Includes
-- component screen
-- filtering by category
-- filtering by trust level
-- component detail views
+#### Phase 4.2 — Project-based Routing
+Move from implicit single-project access to explicit project identity and project-scoped read routes.
 
-### Phase requirement
-The component library is not only a browsing interface.
-It is the beginning of the technical knowledge base.
+See:
+- `docs/phases/phase-4-2-project-based-routing.md`
 
-### Intended outcome
-- components carry structured technical metadata
-- components can later reference datasheets, application notes, and trust state
-- component reuse becomes part of the engineering workflow
+#### Phase 4.3 — Minimal Write API
+Introduce the first minimal create/update endpoints for core project entities.
 
----
+See:
+- `docs/phases/phase-4-3-minimal-write-api.md`
 
-## Phase 6 — Validation Center Expansion
-**Status:** planned
+#### Phase 4.4 — Derived Validation
+Move validation from static/demo-style payloads to a computed domain derived from persisted project state.
 
-### Goal
-Turn validation into a core system instead of a passive display area.
+See:
+- `docs/phases/phase-4-4-derived-validation.md`
 
-### Includes
-- errors
-- warnings
-- assumptions
-- review-required states
-- expandable validation logic
+### Out of scope
+Phase 4 does not include:
+- PostgreSQL
+- auth
+- cloud sync
+- collaboration
+- KiCad export
+- advanced AI implementation flows
+- version history systems
 
-### Phase requirement
-Validation must evolve into an engineering decision layer, not remain a passive display.
+### Detailed phase definition
+See:
 
-### Intended outcome
-- technical assumptions become explicit
-- conflicts and review-required states become first-class entities
-- validation prepares the system for design autonomy without hiding uncertainty
-
----
-
-## Phase 7 — Structured Chat-to-Draft Workflow
-**Status:** planned
-
-### Goal
-Convert requirements entered in chat into structured technical draft data.
-
-### Includes
-- requirement capture
-- structured specification
-- derived functional blocks
-- backend-supported draft generation
-
-### Phase requirement
-Chat input must be transformed into structured engineering data, not remain freeform conversation.
-
-### Intended outcome
-- requirements become structured specification elements
-- structured specification can drive later component selection and validation
-- the system moves from discussion toward derivation
-
----
-
-## Phase 8 — Internal Export Model
-**Status:** planned
-
-### Goal
-Create a deterministic internal model for later schematic generation.
-
-### Includes
-- internal JSON export model
-- stable intermediate representation
-- foundation for generator logic
-
-### Phase requirement
-The export model must become the stable internal representation for deterministic implementation.
-
-### Intended outcome
-- internal design intent is stored independently from chat wording
-- downstream generator logic can operate on structured data
-- later implementation becomes less dependent on freeform LLM output
-
----
-
-## Phase 9 — KiCad Generator
-**Status:** future
-
-### Goal
-Generate KiCad schematic output deterministically from the internal model.
-
-### Includes
-- `.kicad_sch` generation
-- deterministic generation pipeline
-- no direct freeform LLM schematic output
-
----
-
-## Phase 10 — Rule Engine and Trust System
-**Status:** future
-
-### Goal
-Make trust levels and engineering rules part of the core logic.
-
-### Includes
-- trust-aware reuse rules
-- review logic
-- validated templates
-- component and topology confidence handling
-
-### Phase requirement
-Trust and engineering rules must become part of the core decision logic.
-
-### Intended outcome
-- the system can distinguish between strong, weak, and review-required technical basis
-- rule-backed derivation becomes possible
-- autonomous implementation is constrained by explicit engineering confidence
-
----
-
-## Phase 11 — Real Project Workflows
-**Status:** future
-
-### Goal
-Support real engineering project workflows beyond a single demo project.
-
-### Includes
-- multiple projects
-- project lifecycle handling
-- decision tracking
-- freeze states
-- review workflows
-- project knowledge continuity
-- traceable design evolution
-
----
-
-## Phase Evaluation Rule
-
-A phase is stronger if it improves the core memory / knowledge direction of the project.
-
-For Hardware Copilot:
-- does this phase improve technical data quality?
-- does it improve structured design derivation?
-- does it improve validation?
-- does it improve implementation readiness?
-
----
-
-## Long-Term Pipeline
-
-`Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
+- `docs/phases/phase-4-persistent-projects-with-sqlite.md`

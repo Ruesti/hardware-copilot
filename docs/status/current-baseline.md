@@ -15,40 +15,18 @@ Use this file to understand:
 
 ---
 
-## Project Direction
+## Project Goal
 
 Hardware Copilot is intended as a desktop-first engineering workbench for hardware-related development.
 
-It is not primarily a chat assistant.
-Its core direction is to become a technical derivation and implementation system based on reliable engineering data.
+The current concept is based on:
+- chat-based requirement input
+- structured technical drafting instead of freeform output only
+- component handling with trust levels
+- validation-centered design workflow
+- later deterministic KiCad generation from an internal model
 
-The long-term goal is not only to discuss designs, but to support increasingly structured and later partially autonomous design implementation.
-
-This implies:
-- technical sources must become structured and reusable
-- engineering decisions should be based on explicit data, rules, and validations
-- design output should move from freeform text toward deterministic intermediate representations
-
----
-
-## Core Architectural Principle
-
-The current architecture is intentionally not based on letting an LLM directly generate KiCad schematic files.
-
-Instead, the intended system flow is:
-
-1. collect requirements in chat
-2. derive a structured specification
-3. derive functional blocks
-4. select components
-5. add standard support circuits
-6. validate assumptions and rules
-7. produce an internal intermediate model
-8. later generate KiCad files deterministically
-
-This architectural assumption is central to the project.
-
-High-level pipeline:
+The planned high-level pipeline is:
 
 `Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
 
@@ -62,154 +40,147 @@ Currently working:
 - the desktop shell exists
 - the React frontend is running
 - the FastAPI backend is running
-- the frontend loads project data from the backend API
-- the design workspace is interactive
-- the inspector reacts to selected entities
-- the backend exposes a typed project response model
-- frontend and backend project fields are aligned in camelCase at the API boundary
+- the frontend loads project data from the backend
+- the frontend loads requirements from a dedicated endpoint
+- the frontend loads blocks from a dedicated endpoint
+- the frontend loads components from a dedicated endpoint
+- validation is available as a dedicated domain endpoint
 
-This means the project has moved beyond static UI mockup stage.
-
-The current system already demonstrates:
-- a working desktop shell
-- a working frontend/backend connection
-- a typed backend contract
-- a first separation between UI state and backend state
-
----
-
-## Current Development Position
-
-The project is currently beyond foundation setup and early backend connection work.
-
-Completed baseline phases:
-- Phase 1 — Foundation Setup
-- Phase 2 — Workbench Shell
-- Phase 2.5 — Interactive Selection Layer
-- Phase 3 — Initial Backend Integration
+Completed phases:
 - Phase 3.1 — Backend Model Hardening
-
-Current active direction:
 - Phase 3.2 — Domain API Expansion
 
-This means the immediate next step is no longer generic UI work.
-The immediate next step is to separate the backend into clearer engineering domains such as project data, component data, and validation data.
+Current major phase:
+- Phase 4 — Persistent Projects with SQLite
+
+Planned Phase 4 subphases:
+- Phase 4.1 — SQLite Backend Foundation
+- Phase 4.2 — Project-based Routing
+- Phase 4.3 — Minimal Write API
+- Phase 4.4 — Derived Validation
+
+See:
+- `docs/phases/phase-4-persistent-projects-with-sqlite.md`
+- `docs/phases/phase-4-1-sqlite-backend-foundation.md`
+- `docs/phases/phase-4-2-project-based-routing.md`
+- `docs/phases/phase-4-3-minimal-write-api.md`
+- `docs/phases/phase-4-4-derived-validation.md`
 
 ---
 
-## What the System Can Do Today
+## Current API State
 
-At the current baseline, Hardware Copilot can:
-- run as a desktop application shell
-- display a structured workbench UI
-- load a project from the backend
-- show project requirements and blocks
-- react to interactive selection in the design workspace
-- show inspector content based on selected entities
-- expose typed project data from the backend to the frontend
+The current backend API exposes the following read endpoints:
 
-This is enough to prove the architectural foundation, but not yet enough to support real engineering workflows.
+- `GET /project`
+- `GET /requirements`
+- `GET /blocks`
+- `GET /components`
+- `GET /validation`
 
----
+Current endpoint responsibilities:
 
-## What the System Cannot Do Yet
+### `/project`
+Returns lightweight project-level data:
+- `name`
+- `phase`
+- `chatMessages`
 
-At the current baseline, Hardware Copilot does not yet provide:
-- persistent project storage
-- a real technical component knowledge base
-- structured datasheet or application-note ingestion
-- source-backed component comparison
-- rule-backed engineering validation
-- structured draft derivation from chat input
-- deterministic export model generation
-- KiCad schematic generation
-- traceable technical decision history across real projects
+### `/requirements`
+Returns:
+- `items`
 
-These are still future capabilities.
+### `/blocks`
+Returns:
+- `items`
 
----
+### `/components`
+Returns:
+- `items`
 
-## Technology Stack
+### `/validation`
+Returns:
+- `items`
 
-### Desktop Shell
-- Tauri
+This means the previous direct frontend dependency on a monolithic project payload has already been reduced.
 
-### Frontend
-- React
-- TypeScript
-- Vite
-
-### Styling
-- currently mostly inline styles
-- no consolidated design system yet
-
-### Backend
-- Python
-- FastAPI
-- Pydantic models for API responses
-
-### Later / planned
-- SQLite
-- component database
-- topology knowledge
-- deterministic export model
-- KiCad schematic generation
+The `/project` endpoint is now focused on project metadata and chat messages, while requirements, blocks, components, and validation are exposed as separate domain reads.
 
 ---
 
-## Current Architectural Direction in Practice
+## Current Architecture Assumptions
 
-The practical implication of the current baseline is:
+The current implementation still assumes a demo-like single project state.
 
-- chat is currently only an entry surface, not yet the engineering engine
-- backend models are becoming the stable contract
-- domain separation is beginning
-- validation is present as a structural idea, but not yet a real engineering reasoning layer
-- components are present as a concept, but not yet a trustworthy technical knowledge base
+Important current characteristics:
+- there is no database yet
+- data is still effectively sample or in-memory driven
+- the API shape is already domain-split
+- the frontend no longer depends on `project.requirements` or `project.blocks`
+- the system is still primarily read-oriented
 
-So the project is currently in the transition from:
-- connected demo baseline
-
-toward:
-- structured engineering system
+This is the architectural handoff point into Phase 4.
 
 ---
 
-## Current Project Structure
+## Current Limits
 
-```text
-hardware-copilot/
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   └── models.py
-│   ├── requirements.txt
-│   └── .venv/
-├── src/
-│   ├── components/
-│   │   ├── layout/
-│   │   │   ├── AppShell.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── TopBar.tsx
-│   │   │   └── WorkspaceLayout.tsx
-│   │   ├── panels/
-│   │   │   ├── ChatPanel.tsx
-│   │   │   ├── DesignTreePanel.tsx
-│   │   │   ├── InspectorPanel.tsx
-│   │   │   └── ValidationPanel.tsx
-│   │   └── ui/
-│   │       ├── Panel.tsx
-│   │       └── StatusBadge.tsx
-│   ├── types/
-│   │   └── project.ts
-│   ├── App.tsx
-│   └── main.tsx
-├── src-tauri/
-├── package.json
-├── package-lock.json
-├── README.md
-├── bootstrap.sh
-├── start_backend.sh
-├── start_tauri.sh
-├── start_dev.sh
-└── .gitignore
+The current baseline is useful as a frontend/backend integration foundation, but it still has clear limits:
+
+- no persistent project storage
+- no explicit project identity
+- no real multi-project model
+- no minimal CRUD foundation for core entities
+- validation is not yet fully derived from a persisted project state
+
+These are intentional limits of the current baseline and are the basis for the next phase.
+
+---
+
+## Why the Current Baseline Matters
+
+The current baseline is important because it already established:
+
+- a running desktop shell
+- a functioning frontend/backend integration
+- a typed backend response model
+- domain-level API separation
+- a leaner project endpoint
+- a frontend data flow that can now evolve toward persistent project-based storage
+
+That means the next step does not need to redesign the whole application.
+It needs to add persistence and project identity on top of the existing domain split.
+
+---
+
+## Immediate Next Architectural Step
+
+The next architectural step is Phase 4, broken into four sequential subphases.
+
+### Phase 4.1 — SQLite Backend Foundation
+Introduce SQLite persistence beneath the current read API and move the backend source of truth from sample/in-memory structures to persistent storage.
+
+### Phase 4.2 — Project-based Routing
+Introduce explicit project identity and move from implicit single-project routing to project-scoped read routes.
+
+### Phase 4.3 — Minimal Write API
+Introduce the first create/update endpoints for persisted project entities.
+
+### Phase 4.4 — Derived Validation
+Turn validation into a computed domain derived from persisted project state.
+
+This work is defined in:
+
+- `docs/phases/phase-4-persistent-projects-with-sqlite.md`
+- `docs/phases/phase-4-1-sqlite-backend-foundation.md`
+- `docs/phases/phase-4-2-project-based-routing.md`
+- `docs/phases/phase-4-3-minimal-write-api.md`
+- `docs/phases/phase-4-4-derived-validation.md`
+
+---
+
+## End of Current Baseline
+
+At the current baseline, Hardware Copilot has already outgrown a pure frontend mock/demo structure, but it has not yet reached a persistent application-grade project model.
+
+That transition is the purpose of Phase 4.
