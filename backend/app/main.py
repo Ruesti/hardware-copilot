@@ -1,20 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.db import init_db
 from app.models import (
     BlocksResponse,
-    ChatMessage,
-    ComponentItem,
     ComponentsResponse,
-    DesignBlock,
     ProjectState,
-    Requirement,
     RequirementsResponse,
-    TrustLevel,
     ValidationIssue,
     ValidationResponse,
     ValidationSeverity,
 )
+from app.repository import (
+    get_blocks_response,
+    get_components_response,
+    get_project_state,
+    get_requirements_response,
+)
+from app.seed import seed_if_empty
 
 app = FastAPI(title="Hardware Copilot Backend")
 
@@ -32,82 +35,10 @@ app.add_middleware(
 )
 
 
-def build_demo_requirements() -> list[Requirement]:
-    return [
-        Requirement(
-            id="req-1",
-            title="24V supply input",
-            description="The system shall accept a 24V DC input.",
-            status="open",
-        ),
-        Requirement(
-            id="req-2",
-            title="Presence detection",
-            description="The system shall detect human presence.",
-            status="open",
-        ),
-    ]
-
-
-def build_demo_blocks() -> list[DesignBlock]:
-    return [
-        DesignBlock(
-            id="blk-1",
-            name="24V Input Protection",
-            description="Input polarity and surge protection stage.",
-            trust_level=TrustLevel.REVIEWED,
-        ),
-        DesignBlock(
-            id="blk-2",
-            name="Buck 24V to 5V",
-            description="Primary step-down conversion.",
-            trust_level=TrustLevel.PARSED,
-        ),
-        DesignBlock(
-            id="blk-3",
-            name="ESP32-C3 Core",
-            description="Main control and connectivity block.",
-            trust_level=TrustLevel.NEW,
-        ),
-    ]
-
-
-def build_demo_components() -> list[ComponentItem]:
-    return [
-        ComponentItem(
-            id="cmp-1",
-            name="TVS Diode",
-            value="SMBJ33A",
-            package="SMB",
-            manufacturer="Littelfuse",
-            mpn="SMBJ33A",
-            description="Input surge protection diode.",
-            trust_level=TrustLevel.REVIEWED,
-            block_id="blk-1",
-        ),
-        ComponentItem(
-            id="cmp-2",
-            name="Buck Regulator",
-            value="MP1584EN",
-            package="SOIC-8",
-            manufacturer="MPS",
-            mpn="MP1584EN",
-            description="24V to 5V buck regulator.",
-            trust_level=TrustLevel.PARSED,
-            block_id="blk-2",
-        ),
-        ComponentItem(
-            id="cmp-3",
-            name="MCU",
-            value="ESP32-C3",
-            package="QFN32",
-            manufacturer="Espressif",
-            mpn="ESP32-C3",
-            description="Wi-Fi/BLE microcontroller.",
-            trust_level=TrustLevel.VALIDATED,
-            block_id="blk-3",
-        ),
-    ]
+@app.on_event("startup")
+def startup_event() -> None:
+    init_db()
+    seed_if_empty()
 
 
 @app.get("/health")
@@ -117,27 +48,22 @@ def health() -> dict[str, str]:
 
 @app.get("/project", response_model=ProjectState)
 def get_project() -> ProjectState:
-    return ProjectState(
-        name="24V Presence Sensor",
-        phase="Phase 3.2 — Domain API Expansion",
-        chat_messages=[
-            ChatMessage(
-                id="msg-1",
-                role="assistant",
-                content="Initial project draft created from sample backend data.",
-            )
-        ],
-    )
+    return get_project_state()
 
 
 @app.get("/requirements", response_model=RequirementsResponse)
 def get_requirements() -> RequirementsResponse:
-    return RequirementsResponse(items=build_demo_requirements())
+    return get_requirements_response()
 
 
 @app.get("/blocks", response_model=BlocksResponse)
 def get_blocks() -> BlocksResponse:
-    return BlocksResponse(items=build_demo_blocks())
+    return get_blocks_response()
+
+
+@app.get("/components", response_model=ComponentsResponse)
+def get_components() -> ComponentsResponse:
+    return get_components_response()
 
 
 @app.get("/validation", response_model=ValidationResponse)
@@ -162,8 +88,3 @@ def get_validation() -> ValidationResponse:
             ),
         ]
     )
-
-
-@app.get("/components", response_model=ComponentsResponse)
-def get_components() -> ComponentsResponse:
-    return ComponentsResponse(items=build_demo_components())
