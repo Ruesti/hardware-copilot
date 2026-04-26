@@ -1,195 +1,178 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AppShell } from "./components/layout/AppShell";
-import { fetchProject } from "./api/project";
+import { fetchProjects, createProject } from "./api/projects";
 import { fetchRequirements } from "./api/requirements";
 import { fetchBlocks } from "./api/blocks";
 import { fetchComponents } from "./api/components";
+import { fetchChat } from "./api/chat";
 import type {
-  ProjectState,
+  ProjectListItem,
   Requirement,
   DesignBlock,
-  Selection,
   ComponentItem,
+  ChatMessage,
 } from "./types/project";
 
+export type ActiveTab = "chat" | "spec" | "components" | "datasheets" | "validation" | "diagram";
+
 function App() {
-  const [project, setProject] = useState<ProjectState | null>(null);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [blocks, setBlocks] = useState<DesignBlock[]>([]);
   const [components, setComponents] = useState<ComponentItem[]>([]);
-  const [selection, setSelection] = useState<Selection>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
+  const [loading, setLoading] = useState(true);
+  const [projectLoading, setProjectLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isCancelled = false;
-
-    const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const [
-          projectData,
-          requirementsResponse,
-          blocksResponse,
-          componentsResponse,
-        ] = await Promise.all([
-          fetchProject(),
-          fetchRequirements(),
-          fetchBlocks(),
-          fetchComponents(),
-        ]);
-
-        if (!isCancelled) {
-          setProject(projectData);
-          setRequirements(requirementsResponse.items);
-          setBlocks(blocksResponse.items);
-          setComponents(componentsResponse.items);
-        }
-      } catch (err) {
-        console.error("Failed to load app data:", err);
-
-        let message = "Unknown error while loading app data";
-
-        if (err instanceof Error) {
-          message = err.message;
-        } else {
-          try {
-            message = JSON.stringify(err);
-          } catch {
-            message = String(err);
-          }
-        }
-
-        if (!isCancelled) {
-          setError(message);
-          setProject(null);
-          setRequirements([]);
-          setBlocks([]);
-          setComponents([]);
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadData();
-
-    return () => {
-      isCancelled = true;
-    };
+    fetchProjects()
+      .then((list) => {
+        setProjects(list);
+        if (list.length > 0) setActiveProjectId(list[0].id);
+        else setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+        setLoading(false);
+      });
   }, []);
 
-  if (isLoading) {
+  const loadProjectData = useCallback(async (projectId: string) => {
+    setProjectLoading(true);
+    try {
+      const [reqs, blks, cmps, chat] = await Promise.all([
+        fetchRequirements(projectId),
+        fetchBlocks(projectId),
+        fetchComponents(projectId),
+        fetchChat(projectId),
+      ]);
+      setRequirements(reqs.items);
+      setBlocks(blks.items);
+      setComponents(cmps.items);
+      setChatMessages(chat.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProjectLoading(false);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeProjectId) loadProjectData(activeProjectId);
+  }, [activeProjectId, loadProjectData]);
+
+  const handleSelectProject = (id: string) => {
+    setActiveProjectId(id);
+  };
+
+  const handleCreateProject = async (name: string) => {
+    const project = await createProject(name);
+    const item: ProjectListItem = {
+      id: project.id,
+      name: project.name,
+      phase: project.phase,
+      createdAt: project.createdAt,
+    };
+    setProjects((prev) => [item, ...prev]);
+    setActiveProjectId(project.id);
+  };
+
+  if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#0f172a",
-          color: "#e2e8f0",
-          fontFamily: "Inter, system-ui, sans-serif",
-        }}
-      >
-        Loading project...
+      <div style={centerStyle}>
+        <div style={{ color: "#60a5fa", fontSize: 14 }}>Connecting to backend…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#0f172a",
-          color: "#e2e8f0",
-          fontFamily: "Inter, system-ui, sans-serif",
-          padding: 24,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 640,
-            width: "100%",
-            background: "#111827",
-            border: "1px solid #334155",
-            borderRadius: 12,
-            padding: 20,
-          }}
-        >
-          <h1
-            style={{
-              margin: "0 0 12px 0",
-              fontSize: 20,
-              fontWeight: 600,
-            }}
-          >
+      <div style={{ ...centerStyle, padding: 24 }}>
+        <div style={errorBoxStyle}>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
             Backend connection error
-          </h1>
-
-          <p
-            style={{
-              margin: "0 0 16px 0",
-              color: "#cbd5e1",
-              lineHeight: 1.5,
-            }}
+          </div>
+          <div style={{ color: "#94a3b8", marginBottom: 12, fontSize: 13 }}>
+            Make sure the FastAPI backend is running on port 8000.
+          </div>
+          <pre style={preStyle}>{error}</pre>
+          <button
+            style={retryBtnStyle}
+            onClick={() => { setError(null); setLoading(true); window.location.reload(); }}
           >
-            The project data could not be loaded from the backend.
-          </p>
-
-          <pre
-            style={{
-              margin: 0,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              background: "#0b1220",
-              border: "1px solid #334155",
-              borderRadius: 8,
-              padding: 12,
-              color: "#fca5a5",
-              fontSize: 14,
-            }}
-          >
-            {error}
-          </pre>
+            Retry
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!project) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#0f172a",
-          color: "#e2e8f0",
-          fontFamily: "Inter, system-ui, sans-serif",
-        }}
-      >
-        No project data available.
-      </div>
-    );
-  }
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
 
   return (
     <AppShell
-      project={project}
+      projects={projects}
+      activeProject={activeProject}
+      activeTab={activeTab}
       requirements={requirements}
       blocks={blocks}
       components={components}
-      selection={selection}
-      onSelect={setSelection}
+      chatMessages={chatMessages}
+      projectLoading={projectLoading}
+      onSelectProject={handleSelectProject}
+      onCreateProject={handleCreateProject}
+      onTabChange={setActiveTab}
+      onRequirementsChange={setRequirements}
+      onBlocksChange={setBlocks}
+      onComponentsChange={setComponents}
+      onChatMessagesChange={setChatMessages}
     />
   );
 }
 
 export default App;
+
+const centerStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  display: "grid",
+  placeItems: "center",
+  background: "#09090b",
+  color: "#f4f4f5",
+  fontFamily: "Inter, system-ui, sans-serif",
+};
+
+const errorBoxStyle: React.CSSProperties = {
+  maxWidth: 560,
+  width: "100%",
+  background: "#111114",
+  border: "1px solid #3f3f46",
+  borderRadius: 12,
+  padding: 20,
+};
+
+const preStyle: React.CSSProperties = {
+  margin: 0,
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  background: "#0b0b0e",
+  border: "1px solid #27272a",
+  borderRadius: 8,
+  padding: 12,
+  color: "#fca5a5",
+  fontSize: 13,
+};
+
+const retryBtnStyle: React.CSSProperties = {
+  marginTop: 12,
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  padding: "8px 16px",
+  cursor: "pointer",
+  fontSize: 13,
+};

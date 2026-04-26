@@ -61,7 +61,7 @@ export function InspectorPanel({
   if (selection?.kind === "component") {
     const comp = components.find((c) => c.id === selection.id);
     if (comp) {
-      title = comp.name;
+      title = comp.name ?? "Component";
       details = comp.description || comp.value || "No description available.";
       badgeLabel = comp.trustLevel;
       badgeTone = comp.trustLevel;

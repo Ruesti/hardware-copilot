@@ -32,6 +32,10 @@ backend/.venv/
 __pycache__/
 *.pyc
 
+# Secrets
+.env
+backend/.env
+
 # Tauri / build
 src-tauri/target/
 

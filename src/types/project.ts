@@ -12,6 +12,29 @@ export type ValidationSeverity =
   | "error"
   | "review_required";
 
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export type ProjectListItem = {
+  id: string;
+  name: string;
+  phase: string;
+  createdAt: string;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  phase: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProjectsListResponse = {
+  items: ProjectListItem[];
+};
+
+// ── Requirements ──────────────────────────────────────────────────────────────
+
 export type Requirement = {
   id: string;
   title: string;
@@ -22,6 +45,8 @@ export type Requirement = {
 export type RequirementsResponse = {
   items: Requirement[];
 };
+
+// ── Blocks ────────────────────────────────────────────────────────────────────
 
 export type DesignBlock = {
   id: string;
@@ -34,9 +59,12 @@ export type BlocksResponse = {
   items: DesignBlock[];
 };
 
+// ── Components ────────────────────────────────────────────────────────────────
+
 export type ComponentItem = {
   id: string;
-  name: string;
+  name: string | null;
+  type: string | null;
   value: string | null;
   package: string | null;
   manufacturer: string | null;
@@ -49,6 +77,20 @@ export type ComponentItem = {
 export type ComponentsResponse = {
   items: ComponentItem[];
 };
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
+export type ChatHistoryResponse = {
+  items: ChatMessage[];
+};
+
+// ── Validation ────────────────────────────────────────────────────────────────
 
 export type ValidationIssue = {
   id: string;
@@ -63,32 +105,53 @@ export type ValidationResponse = {
   items: ValidationIssue[];
 };
 
-export type ChatMessage = {
+// ── Diagram ───────────────────────────────────────────────────────────────────
+
+export type DiagramBlock = {
   id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
+  name: string;
+  description: string;
+  trustLevel: TrustLevel;
+  posX: number;
+  posY: number;
+  componentCount: number;
 };
 
-export type RequirementSelection = {
-  kind: "requirement";
+export type BlockConnection = {
   id: string;
+  sourceBlockId: string;
+  targetBlockId: string;
+  label: string;
+  connType: string;
 };
 
-export type BlockSelection = {
-  kind: "block";
+// ── Datasheets ────────────────────────────────────────────────────────────────
+
+export type DatasheetRecord = {
   id: string;
+  projectId: string;
+  componentId: string | null;
+  filename: string;
+  extractedData: Record<string, unknown>;
+  createdAt: string;
 };
 
-export type ComponentSelection = {
-  kind: "component";
-  id: string;
+export type DatasheetsResponse = {
+  items: DatasheetRecord[];
 };
 
+// ── Selection ─────────────────────────────────────────────────────────────────
+
+export type RequirementSelection = { kind: "requirement"; id: string };
+export type BlockSelection = { kind: "block"; id: string };
+export type ComponentSelection = { kind: "component"; id: string };
 export type Selection =
   | RequirementSelection
   | BlockSelection
   | ComponentSelection
   | null;
+
+// ── Legacy (kept for compatibility) ──────────────────────────────────────────
 
 export type ProjectState = {
   name: string;

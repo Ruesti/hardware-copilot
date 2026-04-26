@@ -16,6 +16,11 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row["name"] == column for row in rows)
+
+
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(
@@ -63,6 +68,7 @@ def init_db() -> None:
                 project_id TEXT NOT NULL,
                 block_id TEXT,
                 name TEXT NOT NULL,
+                type TEXT,
                 value TEXT,
                 package TEXT,
                 manufacturer TEXT,
@@ -73,5 +79,38 @@ def init_db() -> None:
                 FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
                 FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE SET NULL
             );
+
+            CREATE TABLE IF NOT EXISTS datasheets (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                component_id TEXT,
+                filename TEXT NOT NULL,
+                extracted_data TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                FOREIGN KEY (component_id) REFERENCES components(id) ON DELETE SET NULL
+            );
             """
         )
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS connections (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                source_block_id TEXT NOT NULL,
+                target_block_id TEXT NOT NULL,
+                label TEXT NOT NULL DEFAULT '',
+                conn_type TEXT NOT NULL DEFAULT 'signal',
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                FOREIGN KEY (source_block_id) REFERENCES blocks(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_block_id) REFERENCES blocks(id) ON DELETE CASCADE
+            );
+            """
+        )
+        # Migrations for existing DBs
+        if not _column_exists(conn, "components", "type"):
+            conn.execute("ALTER TABLE components ADD COLUMN type TEXT")
+        if not _column_exists(conn, "blocks", "pos_x"):
+            conn.execute("ALTER TABLE blocks ADD COLUMN pos_x REAL DEFAULT 0")
+        if not _column_exists(conn, "blocks", "pos_y"):
+            conn.execute("ALTER TABLE blocks ADD COLUMN pos_y REAL DEFAULT 0")
