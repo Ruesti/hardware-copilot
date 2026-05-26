@@ -115,6 +115,8 @@ export type DiagramBlock = {
   posX: number;
   posY: number;
   componentCount: number;
+  schematicAscii: string | null;
+  schematicValidated: boolean;
 };
 
 export type BlockConnection = {

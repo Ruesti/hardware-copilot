@@ -31,15 +31,37 @@ export async function streamChat({
   onError,
   signal,
 }: StreamChatOptions): Promise<void> {
+  return _doStream(`${API_BASE_URL}/projects/${projectId}/chat/stream`, message, onChunk, onDone, onError, signal);
+}
+
+export async function streamInterviewChat({
+  projectId,
+  message,
+  onChunk,
+  onDone,
+  onError,
+  signal,
+}: StreamChatOptions): Promise<void> {
+  return _doStream(`${API_BASE_URL}/projects/${projectId}/chat/interview-stream`, message, onChunk, onDone, onError, signal);
+}
+
+async function _doStream(
+  url: string,
+  message: string,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/projects/${projectId}/chat/stream`, {
+    response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: message }),
       signal,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     if ((err as Error).name === "AbortError") return;
     onError(err instanceof Error ? err.message : "Network error");
     return;

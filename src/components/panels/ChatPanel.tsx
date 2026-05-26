@@ -1,21 +1,64 @@
 import { useEffect, useRef, useState } from "react";
-import { streamChat, clearChat } from "../../api/chat";
+import { streamChat, streamInterviewChat, clearChat } from "../../api/chat";
+import { createRequirement } from "../../api/requirements";
 import { draftCircuit, suggestComponents } from "../../api/components";
-import type { ChatMessage } from "../../types/project";
+import { suggestConnections } from "../../api/diagram";
+import { CircuitOverview } from "../diagram/CircuitOverview";
+import { SchematicModal } from "../diagram/SchematicModal";
+import { SpecSidebar } from "./SpecSidebar";
+import type { ChatMessage, DiagramBlock, BlockConnection, ComponentItem, Requirement } from "../../types/project";
+
+const REQ_TAG_RE = /<req\s+title="([^"]+)"\s+description="([^"]+)"\s*\/>/;
 
 type Props = {
   projectId: string;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
+  diagramBlocks: DiagramBlock[];
+  diagramConnections: BlockConnection[];
+  components: ComponentItem[];
+  requirements: Requirement[];
+  onDiagramRefresh: () => void;
+  onRequirementsChange: (items: Requirement[]) => void;
+  /**
+   * Wenn true: rechte Sidebar (SpecSidebar/CircuitOverview) und das interne
+   * SchematicModal werden ausgeblendet — der einbettende Container kümmert sich um beides.
+   */
+  embedded?: boolean;
+  /**
+   * Wird nach jedem abgeschlossenen Assistant-Stream oder erfolgreichen
+   * AI-Action (Draft/Suggest/Connections) aufgerufen. Workbench nutzt das für Auto-Refresh.
+   */
+  onAssistantTurn?: (content: string, source: "stream" | "draft" | "suggest" | "connections") => void;
+  /** Initialer Zustand des Interview-Toggles. Workbench nutzt das, um Interview standardmäßig an zu lassen. */
+  defaultInterviewMode?: boolean;
 };
 
-export function ChatPanel({ projectId, messages, onMessagesChange }: Props) {
+export function ChatPanel({
+  projectId,
+  messages,
+  onMessagesChange,
+  diagramBlocks,
+  diagramConnections,
+  components,
+  requirements,
+  onDiagramRefresh,
+  onRequirementsChange,
+  embedded = false,
+  onAssistantTurn,
+  defaultInterviewMode = false,
+}: Props) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [aiAction, setAiAction] = useState<string | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [interviewMode, setInterviewMode] = useState(defaultInterviewMode);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const selectedBlock = diagramBlocks.find((b) => b.id === selectedBlockId) ?? null;
+  const hasBlocks = diagramBlocks.length > 0;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,23 +82,40 @@ export function ChatPanel({ projectId, messages, onMessagesChange }: Props) {
     abortRef.current = controller;
     let collected = "";
 
-    await streamChat({
+    const streamFn = interviewMode ? streamInterviewChat : streamChat;
+
+    await streamFn({
       projectId,
       message: msg,
       signal: controller.signal,
       onChunk: (chunk) => {
         collected += chunk;
-        setStreamingText(collected);
+        setStreamingText(collected.replace(REQ_TAG_RE, "").trim());
       },
-      onDone: () => {
+      onDone: async () => {
+        // Extract and save requirement if present
+        const match = REQ_TAG_RE.exec(collected);
+        if (match) {
+          try {
+            const newReq = await createRequirement(projectId, {
+              title: match[1],
+              description: match[2],
+            });
+            onRequirementsChange([...requirements, newReq]);
+          } catch {
+            // non-critical
+          }
+        }
+        const displayContent = collected.replace(REQ_TAG_RE, "").trim();
         const assistantMsg: ChatMessage = {
           id: `tmp-${Date.now()}-a`,
           role: "assistant",
-          content: collected,
+          content: displayContent,
         };
         onMessagesChange([...messages, userMsg, assistantMsg]);
         setStreamingText("");
         setStreaming(false);
+        onAssistantTurn?.(collected, "stream");
       },
       onError: (err) => {
         const errMsg: ChatMessage = {
@@ -70,19 +130,37 @@ export function ChatPanel({ projectId, messages, onMessagesChange }: Props) {
     });
   };
 
-  const handleAiAction = async (action: "draft" | "suggest") => {
+  const handleAiAction = async (action: "draft" | "suggest" | "connections") => {
     if (streaming || aiAction) return;
-    setAiAction(action === "draft" ? "Drafting circuit…" : "Suggesting components…");
+
+    const labels: Record<typeof action, string> = {
+      draft: "Drafting circuit…",
+      suggest: "Suggesting components…",
+      connections: "Suggesting connections…",
+    };
+    setAiAction(labels[action]);
+
     try {
       if (action === "draft") {
         const result = await draftCircuit(projectId);
+        let body: string;
+        if (result.blocksCreated === 0 && requirements.length === 0) {
+          body =
+            "Noch keine Anforderungen erfasst. Aktiviere oben den **Interview**-Button — die KI stellt dann gezielte Fragen und legt automatisch Anforderungen an, aus denen sich das Blockschaltbild ergibt.";
+        } else if (result.blocksCreated === 0) {
+          body = `Keine neuen Blöcke nötig.\n\n${result.summary}`;
+        } else {
+          body = `**Circuit drafted!** ${result.blocksCreated} Block(s) hinzugefügt.\n\n${result.summary}`;
+        }
         const notice: ChatMessage = {
           id: `tmp-${Date.now()}`,
           role: "assistant",
-          content: `**Circuit drafted!** ${result.blocksCreated} block(s) created.\n\n${result.summary}`,
+          content: body,
         };
         onMessagesChange([...messages, notice]);
-      } else {
+        onDiagramRefresh();
+        onAssistantTurn?.(notice.content, "draft");
+      } else if (action === "suggest") {
         const result = await suggestComponents(projectId);
         const notice: ChatMessage = {
           id: `tmp-${Date.now()}`,
@@ -90,6 +168,18 @@ export function ChatPanel({ projectId, messages, onMessagesChange }: Props) {
           content: `**Components suggested!** ${result.created} component(s) added to the project. Switch to the Components tab to review.`,
         };
         onMessagesChange([...messages, notice]);
+        onDiagramRefresh();
+        onAssistantTurn?.(notice.content, "suggest");
+      } else {
+        const result = await suggestConnections(projectId);
+        const notice: ChatMessage = {
+          id: `tmp-${Date.now()}`,
+          role: "assistant",
+          content: `**Connections suggested!** ${result.created} connection(s) added between blocks.`,
+        };
+        onMessagesChange([...messages, notice]);
+        onDiagramRefresh();
+        onAssistantTurn?.(notice.content, "connections");
       }
     } catch (err) {
       const errMsg: ChatMessage = {
@@ -134,110 +224,170 @@ export function ChatPanel({ projectId, messages, onMessagesChange }: Props) {
         <span style={{ fontSize: 12, color: "#52525b", flex: 1 }}>
           Engineering Copilot
         </span>
-        <ActionButton
-          label={aiAction ?? "Draft Circuit"}
-          loading={aiAction === "Drafting circuit…"}
-          disabled={!!aiAction || streaming}
-          onClick={() => handleAiAction("draft")}
-          color="#7c3aed"
-        />
-        <ActionButton
-          label={aiAction ?? "Suggest Components"}
-          loading={aiAction === "Suggesting components…"}
-          disabled={!!aiAction || streaming}
-          onClick={() => handleAiAction("suggest")}
-          color="#0891b2"
-        />
+        <button
+          onClick={() => setInterviewMode((m) => !m)}
+          style={{
+            background: interviewMode ? "#7c3aed" : "transparent",
+            color: interviewMode ? "#fff" : "#7c3aed",
+            border: "1px solid #7c3aed",
+            borderRadius: 7,
+            padding: "4px 10px",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: interviewMode ? 600 : 400,
+          }}
+          title="Interview-Modus: Claude stellt gezielte Fragen und speichert Anforderungen automatisch"
+        >
+          {interviewMode ? "● Interview" : "Interview"}
+        </button>
+        {!embedded && (
+          <>
+            <ActionButton
+              label={aiAction === "Drafting circuit…" ? "Drafting…" : "Draft Circuit"}
+              loading={aiAction === "Drafting circuit…"}
+              disabled={!!aiAction || streaming}
+              onClick={() => handleAiAction("draft")}
+              color="#7c3aed"
+            />
+            <ActionButton
+              label={aiAction === "Suggesting components…" ? "Suggesting…" : "Suggest Components"}
+              loading={aiAction === "Suggesting components…"}
+              disabled={!!aiAction || streaming}
+              onClick={() => handleAiAction("suggest")}
+              color="#0891b2"
+            />
+            <ActionButton
+              label={aiAction === "Suggesting connections…" ? "Connecting…" : "Suggest Connections"}
+              loading={aiAction === "Suggesting connections…"}
+              disabled={!!aiAction || streaming || !hasBlocks}
+              onClick={() => handleAiAction("connections")}
+              color="#059669"
+            />
+          </>
+        )}
         <button onClick={handleClear} style={ghostBtnStyle} title="Clear chat">
           ✕
         </button>
       </div>
 
-      {/* Messages */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px" }}>
-        {messages.length === 0 && !streamingText && (
+      {/* Main content row */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+        {/* Left: chat */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          {/* Messages */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px" }}>
+            {messages.length === 0 && !streamingText && (
+              <div
+                style={{
+                  color: "#3f3f46",
+                  fontSize: 13,
+                  textAlign: "center",
+                  marginTop: 40,
+                }}
+              >
+                Start the conversation — describe your requirements or ask for a circuit draft.
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} msg={msg} />
+              ))}
+
+              {streamingText && (
+                <MessageBubble
+                  msg={{ id: "streaming", role: "assistant", content: streamingText }}
+                  streaming
+                />
+              )}
+            </div>
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
           <div
             style={{
-              color: "#3f3f46",
-              fontSize: 13,
-              textAlign: "center",
-              marginTop: 40,
+              padding: "12px 16px",
+              borderTop: "1px solid #18181b",
+              flexShrink: 0,
             }}
           >
-            Start the conversation — describe your requirements or ask for a circuit draft.
+            <div style={{ display: "flex", gap: 8 }}>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(input);
+                  }
+                }}
+                disabled={streaming}
+                placeholder="Describe requirements or ask Claude… (Enter to send, Shift+Enter for newline)"
+                rows={2}
+                style={{
+                  flex: 1,
+                  background: "#111114",
+                  color: "#f4f4f5",
+                  border: "1px solid #27272a",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  fontSize: 13,
+                  outline: "none",
+                  resize: "none",
+                  lineHeight: 1.5,
+                  fontFamily: "inherit",
+                }}
+              />
+              <button
+                onClick={() => handleSend(input)}
+                disabled={streaming || !input.trim()}
+                style={{
+                  background: streaming ? "#1d2030" : "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "0 18px",
+                  cursor: streaming ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  alignSelf: "stretch",
+                  opacity: streaming || !input.trim() ? 0.5 : 1,
+                }}
+              >
+                {streaming ? "…" : "Send"}
+              </button>
+            </div>
           </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
-          ))}
-
-          {streamingText && (
-            <MessageBubble
-              msg={{ id: "streaming", role: "assistant", content: streamingText }}
-              streaming
-            />
-          )}
         </div>
-        <div ref={bottomRef} />
-      </div>
 
-      {/* Input */}
-      <div
-        style={{
-          padding: "12px 16px",
-          borderTop: "1px solid #18181b",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", gap: 8 }}>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(input);
-              }
-            }}
-            disabled={streaming}
-            placeholder="Describe requirements or ask Claude… (Enter to send, Shift+Enter for newline)"
-            rows={2}
-            style={{
-              flex: 1,
-              background: "#111114",
-              color: "#f4f4f5",
-              border: "1px solid #27272a",
-              borderRadius: 10,
-              padding: "10px 12px",
-              fontSize: 13,
-              outline: "none",
-              resize: "none",
-              lineHeight: 1.5,
-              fontFamily: "inherit",
-            }}
+        {/* Right column: SpecSidebar in interview mode, CircuitOverview otherwise.
+             Im embedded-Modus übernimmt der Container das Rendering. */}
+        {!embedded && interviewMode && (
+          <SpecSidebar
+            requirements={requirements}
+            blocks={diagramBlocks}
+            components={components}
           />
-          <button
-            onClick={() => handleSend(input)}
-            disabled={streaming || !input.trim()}
-            style={{
-              background: streaming ? "#1d2030" : "#2563eb",
-              color: "#fff",
-              border: "none",
-              borderRadius: 10,
-              padding: "0 18px",
-              cursor: streaming ? "not-allowed" : "pointer",
-              fontSize: 13,
-              fontWeight: 500,
-              alignSelf: "stretch",
-              opacity: streaming || !input.trim() ? 0.5 : 1,
-            }}
-          >
-            {streaming ? "…" : "Send"}
-          </button>
-        </div>
+        )}
+        {!embedded && !interviewMode && hasBlocks && (
+          <CircuitOverview
+            blocks={diagramBlocks}
+            connections={diagramConnections}
+            onBlockClick={setSelectedBlockId}
+          />
+        )}
       </div>
+
+      {/* Schematic modal — nur außerhalb des Workbench */}
+      {!embedded && selectedBlock && (
+        <SchematicModal
+          projectId={projectId}
+          block={selectedBlock}
+          components={components}
+          onClose={() => setSelectedBlockId(null)}
+        />
+      )}
     </div>
   );
 }

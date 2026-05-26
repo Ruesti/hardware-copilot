@@ -114,3 +114,26 @@ def init_db() -> None:
             conn.execute("ALTER TABLE blocks ADD COLUMN pos_x REAL DEFAULT 0")
         if not _column_exists(conn, "blocks", "pos_y"):
             conn.execute("ALTER TABLE blocks ADD COLUMN pos_y REAL DEFAULT 0")
+        if not _column_exists(conn, "blocks", "schematic_ascii"):
+            conn.execute("ALTER TABLE blocks ADD COLUMN schematic_ascii TEXT")
+        if not _column_exists(conn, "blocks", "schematic_validated"):
+            conn.execute("ALTER TABLE blocks ADD COLUMN schematic_validated INTEGER NOT NULL DEFAULT 0")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS claude_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                endpoint TEXT NOT NULL,
+                model TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_create_tokens INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_claude_usage_project ON claude_usage(project_id, created_at)"
+        )

@@ -5,15 +5,18 @@ import { fetchRequirements } from "./api/requirements";
 import { fetchBlocks } from "./api/blocks";
 import { fetchComponents } from "./api/components";
 import { fetchChat } from "./api/chat";
+import { fetchDiagram } from "./api/diagram";
 import type {
   ProjectListItem,
   Requirement,
   DesignBlock,
   ComponentItem,
   ChatMessage,
+  DiagramBlock,
+  BlockConnection,
 } from "./types/project";
 
-export type ActiveTab = "chat" | "spec" | "components" | "datasheets" | "validation" | "diagram";
+export type ActiveTab = "workbench" | "spec" | "components" | "datasheets" | "validation" | "diagram";
 
 function App() {
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
@@ -22,7 +25,9 @@ function App() {
   const [blocks, setBlocks] = useState<DesignBlock[]>([]);
   const [components, setComponents] = useState<ComponentItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("chat");
+  const [diagramBlocks, setDiagramBlocks] = useState<DiagramBlock[]>([]);
+  const [diagramConnections, setDiagramConnections] = useState<BlockConnection[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("workbench");
   const [loading, setLoading] = useState(true);
   const [projectLoading, setProjectLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,16 +48,19 @@ function App() {
   const loadProjectData = useCallback(async (projectId: string) => {
     setProjectLoading(true);
     try {
-      const [reqs, blks, cmps, chat] = await Promise.all([
+      const [reqs, blks, cmps, chat, diagram] = await Promise.all([
         fetchRequirements(projectId),
         fetchBlocks(projectId),
         fetchComponents(projectId),
         fetchChat(projectId),
+        fetchDiagram(projectId),
       ]);
       setRequirements(reqs.items);
       setBlocks(blks.items);
       setComponents(cmps.items);
       setChatMessages(chat.items);
+      setDiagramBlocks(diagram.blocks);
+      setDiagramConnections(diagram.connections);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -122,6 +130,8 @@ function App() {
       blocks={blocks}
       components={components}
       chatMessages={chatMessages}
+      diagramBlocks={diagramBlocks}
+      diagramConnections={diagramConnections}
       projectLoading={projectLoading}
       onSelectProject={handleSelectProject}
       onCreateProject={handleCreateProject}
@@ -130,6 +140,8 @@ function App() {
       onBlocksChange={setBlocks}
       onComponentsChange={setComponents}
       onChatMessagesChange={setChatMessages}
+      onDiagramBlocksChange={setDiagramBlocks}
+      onDiagramConnectionsChange={setDiagramConnections}
     />
   );
 }

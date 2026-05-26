@@ -471,6 +471,8 @@ def get_diagram(project_id: str) -> tuple[list[DiagramBlock], list[BlockConnecti
             SELECT b.id, b.name, b.description, b.trust_level,
                    COALESCE(b.pos_x, 0) AS pos_x,
                    COALESCE(b.pos_y, 0) AS pos_y,
+                   b.schematic_ascii,
+                   COALESCE(b.schematic_validated, 0) AS schematic_validated,
                    COUNT(c.id) AS component_count
             FROM blocks b
             LEFT JOIN components c ON c.block_id = b.id
@@ -495,6 +497,8 @@ def get_diagram(project_id: str) -> tuple[list[DiagramBlock], list[BlockConnecti
             pos_x=float(r["pos_x"]),
             pos_y=float(r["pos_y"]),
             component_count=int(r["component_count"]),
+            schematic_ascii=r["schematic_ascii"],
+            schematic_validated=bool(r["schematic_validated"]),
         )
         for r in block_rows
     ]
@@ -545,3 +549,151 @@ def delete_connection(project_id: str, conn_id: str) -> bool:
             (conn_id, project_id),
         )
     return cur.rowcount > 0
+
+
+# ── Schematic per block ───────────────────────────────────────────────────────
+
+def set_block_schematic(project_id: str, block_id: str, ascii_text: str | None) -> None:
+    """Speichert den ASCII-Schaltplan. Setzt schematic_validated=0 zurück,
+    da neu generierte Schaltpläne als unvalidiert gelten."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE blocks SET schematic_ascii=?, schematic_validated=0 "
+            "WHERE id=? AND project_id=?",
+            (ascii_text, block_id, project_id),
+        )
+
+
+def set_block_schematic_validated(project_id: str, block_id: str, validated: bool) -> bool:
+    with get_connection() as conn:
+        cur = conn.execute(
+            "UPDATE blocks SET schematic_validated=? WHERE id=? AND project_id=?",
+            (1 if validated else 0, block_id, project_id),
+        )
+    return cur.rowcount > 0
+
+
+def is_block_schematic_validated(project_id: str, block_id: str) -> bool:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(schematic_validated, 0) AS v FROM blocks "
+            "WHERE id=? AND project_id=?",
+            (block_id, project_id),
+        ).fetchone()
+    return bool(row["v"]) if row else False
+
+
+def get_block(project_id: str, block_id: str) -> DesignBlock | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, name, description, trust_level FROM blocks WHERE id=? AND project_id=?",
+            (block_id, project_id),
+        ).fetchone()
+    if row is None:
+        return None
+    return DesignBlock(
+        id=row["id"], name=row["name"], description=row["description"],
+        trust_level=_trust(row["trust_level"]),
+    )
+
+
+def find_block_by_name(project_id: str, name: str) -> DesignBlock | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id, name, description, trust_level FROM blocks WHERE project_id=? AND name=?",
+            (project_id, name),
+        ).fetchone()
+    if row is None:
+        return None
+    return DesignBlock(
+        id=row["id"], name=row["name"], description=row["description"],
+        trust_level=_trust(row["trust_level"]),
+    )
+
+
+def get_block_components(project_id: str, block_id: str) -> list[ComponentItem]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level "
+            "FROM components WHERE project_id=? AND block_id=? ORDER BY order_index ASC, id ASC",
+            (project_id, block_id),
+        ).fetchall()
+    return [_row_to_component(r) for r in rows]
+
+
+# ── Claude Usage Logging ──────────────────────────────────────────────────────
+
+# Preise pro 1 M Tokens (USD) – aktuelle Sonnet-4.6-Preise
+PRICE_INPUT_PER_M = 3.0
+PRICE_OUTPUT_PER_M = 15.0
+PRICE_CACHE_READ_PER_M = 0.30
+PRICE_CACHE_WRITE_PER_M = 3.75
+
+
+def log_claude_usage(
+    project_id: str,
+    endpoint: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read_tokens: int = 0,
+    cache_create_tokens: int = 0,
+) -> None:
+    if (input_tokens + output_tokens + cache_read_tokens + cache_create_tokens) == 0:
+        return
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO claude_usage "
+            "(project_id, created_at, endpoint, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_create_tokens) VALUES (?,?,?,?,?,?,?,?)",
+            (project_id, _now(), endpoint, model, input_tokens, output_tokens,
+             cache_read_tokens, cache_create_tokens),
+        )
+
+
+def get_usage_summary(project_id: str, recent_limit: int = 20) -> dict[str, Any]:
+    with get_connection() as conn:
+        totals = conn.execute(
+            "SELECT COALESCE(SUM(input_tokens), 0) AS in_t, "
+            "COALESCE(SUM(output_tokens), 0) AS out_t, "
+            "COALESCE(SUM(cache_read_tokens), 0) AS cr_t, "
+            "COALESCE(SUM(cache_create_tokens), 0) AS cw_t "
+            "FROM claude_usage WHERE project_id=?",
+            (project_id,),
+        ).fetchone()
+        recent_rows = conn.execute(
+            "SELECT created_at, endpoint, model, input_tokens, output_tokens, "
+            "cache_read_tokens, cache_create_tokens FROM claude_usage "
+            "WHERE project_id=? ORDER BY id DESC LIMIT ?",
+            (project_id, recent_limit),
+        ).fetchall()
+
+    in_t = int(totals["in_t"])
+    out_t = int(totals["out_t"])
+    cr_t = int(totals["cr_t"])
+    cw_t = int(totals["cw_t"])
+    cost = (
+        in_t * PRICE_INPUT_PER_M / 1_000_000
+        + out_t * PRICE_OUTPUT_PER_M / 1_000_000
+        + cr_t * PRICE_CACHE_READ_PER_M / 1_000_000
+        + cw_t * PRICE_CACHE_WRITE_PER_M / 1_000_000
+    )
+    return {
+        "total_input_tokens": in_t,
+        "total_output_tokens": out_t,
+        "total_cache_read_tokens": cr_t,
+        "total_cache_create_tokens": cw_t,
+        "total_cost_usd": round(cost, 5),
+        "recent": [
+            {
+                "created_at": r["created_at"],
+                "endpoint": r["endpoint"],
+                "model": r["model"],
+                "input_tokens": int(r["input_tokens"]),
+                "output_tokens": int(r["output_tokens"]),
+                "cache_read_tokens": int(r["cache_read_tokens"]),
+                "cache_create_tokens": int(r["cache_create_tokens"]),
+            }
+            for r in recent_rows
+        ],
+    }

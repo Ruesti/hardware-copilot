@@ -5,6 +5,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  MarkerType,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -31,6 +32,13 @@ import type { BlockConnection, ComponentItem, DiagramBlock, TrustLevel } from ".
 type Props = {
   projectId: string;
   components: ComponentItem[];
+  /** Wenn gesetzt: kein interner Fetch, der Container liefert die Daten. */
+  externalBlocks?: DiagramBlock[];
+  externalConnections?: BlockConnection[];
+  /** Wenn true: kein interner Detail-Sidebar/Topology-Section. */
+  embedded?: boolean;
+  /** Wird bei Klick auf einen Block gefeuert (statt interner Selection). */
+  onBlockOpen?: (blockId: string) => void;
 };
 
 // ── connection type styling ────────────────────────────────────────────────────
@@ -47,15 +55,12 @@ const CONN_COLOR: Record<string, string> = {
 
 const CONN_TYPES = ["power", "gnd", "signal", "i2c", "spi", "uart", "custom"];
 
-function edgeStyle(connType: string): React.CSSProperties {
-  return { stroke: CONN_COLOR[connType] ?? CONN_COLOR.signal, strokeWidth: 2 };
-}
-
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function autoLayout(blocks: DiagramBlock[]): Record<string, { x: number; y: number }> {
-  const COLS = 3;
-  const W = 280, H = 200;
+  // Mehr Abstand: bei vielen Blöcken eher 4 Spalten, sonst 3.
+  const COLS = blocks.length > 9 ? 4 : 3;
+  const W = 360, H = 280;
   const positions: Record<string, { x: number; y: number }> = {};
   blocks.forEach((b, i) => {
     positions[b.id] = {
@@ -76,7 +81,7 @@ function blocksToNodes(
     const hasPos = b.posX !== 0 || b.posY !== 0;
     const pos = hasPos && !useAutoLayout
       ? { x: b.posX, y: b.posY }
-      : (autoPos[b.id] ?? { x: (i % 3) * 280 + 60, y: Math.floor(i / 3) * 200 + 60 });
+      : (autoPos[b.id] ?? { x: (i % 3) * 360 + 60, y: Math.floor(i / 3) * 280 + 60 });
     return {
       id: b.id,
       type: "blockNode",
@@ -93,17 +98,38 @@ function blocksToNodes(
 }
 
 function connectionsToEdges(connections: BlockConnection[]): Edge[] {
-  return connections.map((c) => ({
-    id: c.id,
-    source: c.sourceBlockId,
-    target: c.targetBlockId,
-    label: c.label || undefined,
-    type: "smoothstep",
-    style: edgeStyle(c.connType),
-    labelStyle: { fill: CONN_COLOR[c.connType] ?? "#a1a1aa", fontSize: 11, fontWeight: 500 },
-    labelBgStyle: { fill: "#111114", fillOpacity: 0.85 },
-    data: { connType: c.connType, connId: c.id },
-  }));
+  return connections.map((c) => {
+    const color = CONN_COLOR[c.connType] ?? CONN_COLOR.signal;
+    return {
+      id: c.id,
+      source: c.sourceBlockId,
+      target: c.targetBlockId,
+      label: c.label || undefined,
+      type: "smoothstep",
+      style: { stroke: color, strokeWidth: 2 },
+      labelStyle: {
+        fill: color,
+        fontSize: 11,
+        fontWeight: 600,
+        textShadow: "0 0 4px #000, 0 0 4px #000",
+      },
+      labelBgStyle: {
+        fill: "#0c0c0f",
+        fillOpacity: 0.95,
+        stroke: color,
+        strokeWidth: 1,
+      },
+      labelBgPadding: [4, 8] as [number, number],
+      labelBgBorderRadius: 6,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color,
+        width: 18,
+        height: 18,
+      },
+      data: { connType: c.connType, connId: c.id },
+    };
+  });
 }
 
 // ── custom node types (stable reference) ──────────────────────────────────────
@@ -111,15 +137,22 @@ const NODE_TYPES = { blockNode: BlockNode };
 
 // ── component ─────────────────────────────────────────────────────────────────
 
-export function DiagramPanel({ projectId, components }: Props) {
+export function DiagramPanel(props: Props) {
   return (
     <ReactFlowProvider>
-      <DiagramInner projectId={projectId} components={components} />
+      <DiagramInner {...props} />
     </ReactFlowProvider>
   );
 }
 
-function DiagramInner({ projectId, components }: Props) {
+function DiagramInner({
+  projectId,
+  components,
+  externalBlocks,
+  externalConnections,
+  embedded = false,
+  onBlockOpen,
+}: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<BlockNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -146,7 +179,19 @@ function DiagramInner({ projectId, components }: Props) {
 
   // ── load ────────────────────────────────────────────────────────────────────
 
+  const usingExternal = externalBlocks !== undefined && externalConnections !== undefined;
+
   useEffect(() => {
+    if (usingExternal) {
+      // Daten kommen vom Container; nur Knoten/Kanten synchronisieren.
+      setDiagramBlocks(externalBlocks!);
+      setConnections(externalConnections!);
+      setNodes(blocksToNodes(externalBlocks!, components, false));
+      setEdges(connectionsToEdges(externalConnections!));
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
@@ -185,7 +230,7 @@ function DiagramInner({ projectId, components }: Props) {
 
     load();
     return () => { cancelled = true; };
-  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, usingExternal, externalBlocks, externalConnections]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // update component counts when components prop changes
   useEffect(() => {
@@ -235,22 +280,7 @@ function DiagramInner({ projectId, components }: Props) {
         connType,
       });
       setConnections((prev) => [...prev, conn]);
-      setEdges((eds) =>
-        addEdge(
-          {
-            id: conn.id,
-            source: conn.sourceBlockId,
-            target: conn.targetBlockId,
-            label: conn.label || undefined,
-            type: "smoothstep",
-            style: edgeStyle(conn.connType),
-            labelStyle: { fill: CONN_COLOR[conn.connType] ?? "#a1a1aa", fontSize: 11 },
-            labelBgStyle: { fill: "#111114", fillOpacity: 0.85 },
-            data: { connType: conn.connType, connId: conn.id },
-          },
-          eds
-        )
-      );
+      setEdges((eds) => addEdge(connectionsToEdges([conn])[0], eds));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -277,11 +307,15 @@ function DiagramInner({ projectId, components }: Props) {
   // ── node click → select ──────────────────────────────────────────────────────
 
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
+    if (onBlockOpen) {
+      onBlockOpen(node.id);
+      return;
+    }
     setSelectedBlockId((prev) => (prev === node.id ? null : node.id));
     setCircuitBlockId(null);
     setSchematic(null);
     setSchematicError(null);
-  }, []);
+  }, [onBlockOpen]);
 
   const onPaneClick = useCallback(() => {
     setSelectedBlockId(null);
@@ -362,7 +396,9 @@ function DiagramInner({ projectId, components }: Props) {
       <div style={centerStyle}>
         <div style={{ textAlign: "center", color: "#3f3f46", fontSize: 13 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>◻</div>
-          No blocks yet. Create blocks in the Spec tab or use "Draft Circuit" in Chat.
+          {embedded
+            ? "Noch keine Blöcke — beschreibe dein Vorhaben im Chat links."
+            : "No blocks yet. Create blocks in the Spec tab or use \"Draft Circuit\" in Chat."}
         </div>
       </div>
     );
@@ -392,12 +428,14 @@ function DiagramInner({ projectId, components }: Props) {
             {error}
           </span>
         )}
-        <ToolbarBtn
-          label={suggesting ? "Suggesting…" : "Suggest Connections"}
-          color="#7c3aed"
-          disabled={suggesting}
-          onClick={handleSuggest}
-        />
+        {!embedded && (
+          <ToolbarBtn
+            label={suggesting ? "Suggesting…" : "Suggest Connections"}
+            color="#7c3aed"
+            disabled={suggesting}
+            onClick={handleSuggest}
+          />
+        )}
         <ToolbarBtn label="Auto Layout" color="#0891b2" onClick={handleAutoLayout} />
         <div style={{ width: 1, height: 20, background: "#27272a" }} />
         <ConnLegend />
@@ -447,8 +485,8 @@ function DiagramInner({ projectId, components }: Props) {
           </ReactFlow>
         </div>
 
-        {/* Detail sidebar */}
-        {selectedBlock && (
+        {/* Detail sidebar — im embedded-Modus übernimmt der Container das */}
+        {!embedded && selectedBlock && (
           <div
             style={{
               width: 300,

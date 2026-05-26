@@ -5,14 +5,16 @@ import type {
   DesignBlock,
   ComponentItem,
   ChatMessage,
+  DiagramBlock,
+  BlockConnection,
 } from "../../types/project";
 import { ProjectSidebar } from "./ProjectSidebar";
-import { ChatPanel } from "../panels/ChatPanel";
 import { SpecPanel } from "../panels/SpecPanel";
 import { ComponentsPanel } from "../panels/ComponentsPanel";
 import { DatasheetPanel } from "../panels/DatasheetPanel";
 import { ValidationPanel } from "../panels/ValidationPanel";
 import { DiagramPanel } from "../panels/DiagramPanel";
+import { WorkbenchPanel } from "../panels/WorkbenchPanel";
 
 type AppShellProps = {
   projects: ProjectListItem[];
@@ -22,6 +24,8 @@ type AppShellProps = {
   blocks: DesignBlock[];
   components: ComponentItem[];
   chatMessages: ChatMessage[];
+  diagramBlocks: DiagramBlock[];
+  diagramConnections: BlockConnection[];
   projectLoading: boolean;
   onSelectProject: (id: string) => void;
   onCreateProject: (name: string) => Promise<void>;
@@ -30,10 +34,12 @@ type AppShellProps = {
   onBlocksChange: (items: DesignBlock[]) => void;
   onComponentsChange: (items: ComponentItem[]) => void;
   onChatMessagesChange: (items: ChatMessage[]) => void;
+  onDiagramBlocksChange: (items: DiagramBlock[]) => void;
+  onDiagramConnectionsChange: (items: BlockConnection[]) => void;
 };
 
 const TABS: { id: ActiveTab; label: string }[] = [
-  { id: "chat", label: "Chat" },
+  { id: "workbench", label: "Workbench" },
   { id: "spec", label: "Spec" },
   { id: "components", label: "Components" },
   { id: "datasheets", label: "Datasheets" },
@@ -49,6 +55,8 @@ export function AppShell({
   blocks,
   components,
   chatMessages,
+  diagramBlocks,
+  diagramConnections,
   projectLoading,
   onSelectProject,
   onCreateProject,
@@ -57,6 +65,8 @@ export function AppShell({
   onBlocksChange,
   onComponentsChange,
   onChatMessagesChange,
+  onDiagramBlocksChange,
+  onDiagramConnectionsChange,
 }: AppShellProps) {
   return (
     <div
@@ -161,11 +171,19 @@ export function AppShell({
 
           {activeProject && !projectLoading && (
             <>
-              {activeTab === "chat" && (
-                <ChatPanel
+              {activeTab === "workbench" && (
+                <WorkbenchPanel
                   projectId={activeProject.id}
                   messages={chatMessages}
                   onMessagesChange={onChatMessagesChange}
+                  requirements={requirements}
+                  onRequirementsChange={onRequirementsChange}
+                  components={components}
+                  onComponentsChange={onComponentsChange}
+                  diagramBlocks={diagramBlocks}
+                  diagramConnections={diagramConnections}
+                  onDiagramBlocksChange={onDiagramBlocksChange}
+                  onDiagramConnectionsChange={onDiagramConnectionsChange}
                 />
               )}
               {activeTab === "spec" && (

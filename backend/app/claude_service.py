@@ -1,12 +1,56 @@
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import os
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
 import anthropic
 
 MODEL = "claude-sonnet-4-6"
+
+
+@dataclass
+class UsageRecord:
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_create_tokens: int = 0
+
+
+_usage_sink: contextvars.ContextVar[list[UsageRecord] | None] = contextvars.ContextVar(
+    "_usage_sink", default=None
+)
+
+
+def _record_usage_from_response(response: Any) -> None:
+    sink = _usage_sink.get()
+    if sink is None:
+        return
+    u = getattr(response, "usage", None)
+    if u is None:
+        return
+    sink.append(
+        UsageRecord(
+            input_tokens=getattr(u, "input_tokens", 0) or 0,
+            output_tokens=getattr(u, "output_tokens", 0) or 0,
+            cache_read_tokens=getattr(u, "cache_read_input_tokens", 0) or 0,
+            cache_create_tokens=getattr(u, "cache_creation_input_tokens", 0) or 0,
+        )
+    )
+
+
+@contextlib.contextmanager
+def capture_usage():
+    """Context manager: alle Claude-Aufrufe innerhalb werden in eine Liste gesammelt."""
+    sink: list[UsageRecord] = []
+    token = _usage_sink.set(sink)
+    try:
+        yield sink
+    finally:
+        _usage_sink.reset(token)
 
 SYSTEM_PROMPT = """You are an expert electronics engineer and PCB design consultant — the Hardware Copilot. You help design embedded systems, power electronics, and IoT devices.
 
@@ -49,7 +93,9 @@ def _build_context_block(context: dict[str, Any]) -> str:
     if blocks:
         parts.append("\n### Design Blocks")
         for b in blocks:
-            parts.append(f"- **{b['name']}** ({b['trust_level']}): {b['description']}")
+            parts.append(
+                f"- id={b['id']} **{b['name']}** ({b['trust_level']}): {b['description']}"
+            )
 
     components = context.get("components", [])
     if components:
@@ -66,14 +112,65 @@ def _build_context_block(context: dict[str, Any]) -> str:
 
 
 def _parse_json_response(text: str) -> Any:
-    text = text.strip()
+    raw = text.strip()
     # Strip markdown code fences if present
-    if text.startswith("```"):
-        lines = text.splitlines()
-        text = "\n".join(lines[1:])
-        if text.endswith("```"):
-            text = text[: text.rfind("```")]
-    return json.loads(text.strip())
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        raw = "\n".join(lines[1:])
+        if raw.endswith("```"):
+            raw = raw[: raw.rfind("```")]
+    raw = raw.strip()
+
+    # Falls der LLM Klartext vor dem JSON ausgegeben hat, das erste { oder [
+    # bis zum dazu passenden Ende heraussuchen.
+    if raw and raw[0] not in "{[":
+        first = -1
+        for ch in ("{", "["):
+            idx = raw.find(ch)
+            if idx != -1 and (first == -1 or idx < first):
+                first = idx
+        if first > 0:
+            raw = raw[first:]
+
+    if not raw:
+        # Leerer LLM-Response → leeres JSON-Objekt liefern statt 502
+        return {}
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        repaired = _repair_truncated_json(raw)
+        if repaired is not None:
+            return repaired
+        raise
+
+
+def _repair_truncated_json(raw: str) -> Any | None:
+    """Versucht, ein abgeschnittenes JSON-Array/-Objekt auf das letzte vollständige
+    Element zu kürzen. Gibt None zurück, wenn keine Reparatur möglich ist."""
+    raw = raw.strip()
+    if raw.startswith("["):
+        # Schneide am letzten "}," ab und schließe das Array
+        last_close = raw.rfind("}")
+        if last_close == -1:
+            return None
+        candidate = raw[: last_close + 1] + "]"
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            return None
+    if raw.startswith("{"):
+        # Versuche, fehlende Klammern am Ende zu schließen
+        open_curly = raw.count("{")
+        close_curly = raw.count("}")
+        open_sq = raw.count("[")
+        close_sq = raw.count("]")
+        candidate = raw + "]" * (open_sq - close_sq) + "}" * (open_curly - close_curly)
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
 async def stream_chat(
@@ -94,15 +191,80 @@ async def stream_chat(
     ) as stream:
         async for text in stream.text_stream:
             yield text
+        try:
+            final = await stream.get_final_message()
+            _record_usage_from_response(final)
+        except Exception:
+            pass
+
+
+INTERVIEW_SYSTEM_PROMPT = """Du bist Hardware Copilot im Interview-Modus. Deine Aufgabe: Erfasse die Anforderungen für ein Hardwareprojekt durch gezielte Einzelfragen.
+
+Regeln:
+- Stelle GENAU EINE kurze Frage pro Antwort (max 2 Sätze)
+- Frage der Reihe nach: Funktion/Zweck → Versorgungsspannung → Schnittstellen → Umgebung/Temperatur → Gehäuse/Formfaktor → Stückzahl
+- Wenn du aus der Antwort des Users eine klare Anforderung ableiten kannst, füge am ENDE deiner Antwort (nach einem Zeilenumbruch) exakt diesen XML-Tag ein — ohne Markdown, ohne Kommentare:
+  <req title="Kurztitel max 5 Wörter" description="Vollständige technische Beschreibung der Anforderung"/>
+- Nur einen <req/> Tag pro Antwort
+- Nie denselben Aspekt zweimal fragen"""
+
+
+async def interview_chat(
+    history: list[dict[str, str]],
+    user_message: str,
+    context: dict[str, Any],
+) -> AsyncGenerator[str, None]:
+    client = _get_async_client()
+    system = INTERVIEW_SYSTEM_PROMPT + "\n\n" + _build_context_block(context)
+
+    messages = [*history, {"role": "user", "content": user_message}]
+
+    async with client.messages.stream(
+        model=MODEL,
+        max_tokens=400,
+        system=system,
+        messages=messages,
+    ) as stream:
+        async for text in stream.text_stream:
+            yield text
+        try:
+            final = await stream.get_final_message()
+            _record_usage_from_response(final)
+        except Exception:
+            pass
 
 
 def suggest_components(context: dict[str, Any]) -> list[dict[str, Any]]:
+    # Ohne Blöcke kein sinnvoller LLM-Call.
+    blocks = context.get("blocks", []) or []
+    if not blocks:
+        return []
+
     client = _get_client()
     ctx_text = _build_context_block(context)
 
-    prompt = f"""{ctx_text}
+    existing_mpns = {c.get("mpn") for c in context.get("components", []) if c.get("mpn")}
+    skip_hint = ""
+    if existing_mpns:
+        skip_hint = "\nBereits vorhandene MPNs (nicht erneut vorschlagen): " + ", ".join(sorted(existing_mpns))
 
-For each design block listed above, suggest 1–3 specific real-world components. Return a JSON array:
+    prompt = f"""{ctx_text}{skip_hint}
+
+Schlage für jeden Block ohne Komponenten 1–6 reale Bauteile vor. Halte die Antwort kompakt; max 30 Bauteile insgesamt.
+Blöcke, die bereits Komponenten haben, NICHT erneut vorschlagen.
+
+Wichtige Regel für ICs/MCUs (mcu, power_ic, sensor, memory): Liefere NICHT NUR das Haupt-IC,
+sondern auch die zwingende Grundbeschaltung als separate Bauteile im SELBEN Block:
+- Decoupling-Caps (z. B. 100 nF + 10 µF an Vcc-Pins)
+- Pull-up/Pull-down-Widerstände (EN, Reset, Boot-Strapping bei ESP32 GPIO0/GPIO2/GPIO15)
+- Reset-Schaltung (RC oder dedizierter Supervisor)
+- Externer Oszillator/Crystal, falls vom IC gefordert
+- USB-/UART-Bridge inkl. Pull-ups, falls Programmierung/Debug nötig
+- Strommessshunts, Schutzdioden, Ferritperlen wenn anwendungsrelevant
+
+Vergib jedem Bauteil das richtige `block_name`, nicht alle ans Haupt-IC.
+
+Return a JSON array:
 [
   {{
     "block_name": "exact block name from above",
@@ -121,39 +283,76 @@ Return ONLY the JSON array, no markdown fences, no explanation."""
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    return _parse_json_response(response.content[0].text)
+    _record_usage_from_response(response)
+    raw_text = response.content[0].text
+    try:
+        result = _parse_json_response(raw_text)
+    except json.JSONDecodeError as exc:
+        snippet = raw_text[:400].replace("\n", " ")
+        raise ValueError(
+            f"LLM lieferte kein gültiges JSON ({exc.msg}). Anfang der Antwort: {snippet!r}"
+        ) from exc
+    return result if isinstance(result, list) else []
 
 
 def draft_circuit(context: dict[str, Any]) -> dict[str, Any]:
+    # Ohne Anforderungen kein LLM-Aufruf — spart Tokens und vermeidet "Keine Antwort möglich"-Klartext.
+    requirements = context.get("requirements", []) or []
+    if not requirements:
+        return {
+            "summary": "Keine Anforderungen vorhanden — bitte zuerst im Chat Anforderungen erfassen.",
+            "blocks": [],
+            "remove_block_ids": [],
+        }
+
     client = _get_client()
     ctx_text = _build_context_block(context)
 
     prompt = f"""{ctx_text}
 
-Design a complete circuit block architecture based on the requirements above.
-Return a JSON object:
+Aufgabe: Pflege die Block-Architektur dieser Schaltung minimal und präzise basierend auf den AKTUELLEN Anforderungen.
+
+Strikte Regeln:
+- Schlage NUR Blöcke vor, die für die Erfüllung mindestens einer expliziten Anforderung zwingend nötig sind.
+- Keine spekulativen Erweiterungen (kein Bluetooth, kein USB, keine Debug-LEDs, kein Display, keine Sensoren — wenn nicht ausdrücklich gefordert).
+- Lieber zu wenig als zu viel. Fehlende Blöcke ergänzt der User später manuell.
+- Vorhandene Blöcke (oben unter "Design Blocks") sollst du NICHT umbenennen oder duplizieren. Wenn ein bestehender Block die Anforderung schon abdeckt, lasse ihn aus dem `blocks`-Output weg.
+- Wenn ein bestehender Block durch geänderte Anforderungen überflüssig wird, trage seine `id` in `remove_block_ids` ein.
+
+Antworte als JSON-Objekt:
 {{
-  "summary": "brief description of the overall circuit",
+  "summary": "ein Satz Zusammenfassung",
   "blocks": [
     {{
-      "name": "block name",
-      "description": "what this block does and key design parameters",
+      "name": "Blockname (kurz, deutsch oder englisch konsistent)",
+      "description": "Was der Block tut + wichtigste Parameter (Spannung, Strom, Schnittstelle)",
       "trust_level": "parsed"
     }}
-  ]
+  ],
+  "remove_block_ids": ["blk-xxxx", ...]
 }}
 
-Return ONLY the JSON, no markdown fences, no explanation."""
+`blocks` enthält NUR neue Blöcke (nicht die bestehenden). `remove_block_ids` darf leer sein.
+Gib ausschließlich JSON zurück, keine Markdown-Fences, keine Erklärung. Wenn keine Änderung nötig ist, antworte mit `{{"summary":"keine Änderung","blocks":[],"remove_block_ids":[]}}`."""
 
     response = client.messages.create(
         model=MODEL,
-        max_tokens=2048,
+        max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
-    return _parse_json_response(response.content[0].text)
+    _record_usage_from_response(response)
+    raw_text = response.content[0].text
+    try:
+        return _parse_json_response(raw_text)
+    except json.JSONDecodeError as exc:
+        # Den Rohtext für Debugging in die Exception einbauen
+        snippet = raw_text[:400].replace("\n", " ")
+        raise ValueError(
+            f"LLM lieferte kein gültiges JSON ({exc.msg}). Anfang der Antwort: {snippet!r}"
+        ) from exc
 
 
 def analyze_datasheet(pdf_text: str, filename: str) -> dict[str, Any]:
@@ -188,6 +387,7 @@ Return ONLY the JSON, no markdown fences."""
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
+    _record_usage_from_response(response)
     try:
         return _parse_json_response(response.content[0].text)
     except Exception:
@@ -228,6 +428,7 @@ Return ONLY the JSON array, no markdown fences."""
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
+    _record_usage_from_response(response)
     try:
         return _parse_json_response(response.content[0].text)
     except Exception:
@@ -273,6 +474,7 @@ Rules:
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
+    _record_usage_from_response(response)
     try:
         return _parse_json_response(response.content[0].text)
     except Exception:
@@ -304,4 +506,5 @@ Return ONLY the ASCII schematic, no explanation."""
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
+    _record_usage_from_response(response)
     return response.content[0].text

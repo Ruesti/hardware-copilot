@@ -128,6 +128,31 @@ class DiagramBlock(ApiModel):
     pos_x: float = 0.0
     pos_y: float = 0.0
     component_count: int = 0
+    schematic_ascii: str | None = None
+    schematic_validated: bool = False
+
+
+class SchematicValidateRequest(ApiModel):
+    validated: bool
+
+
+class UsageEntry(ApiModel):
+    created_at: str
+    endpoint: str
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int = 0
+    cache_create_tokens: int = 0
+
+
+class UsageResponse(ApiModel):
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_cache_read_tokens: int = 0
+    total_cache_create_tokens: int = 0
+    total_cost_usd: float = 0.0
+    recent: list[UsageEntry] = Field(default_factory=list)
 
 
 class BlockConnection(ApiModel):
@@ -148,6 +173,13 @@ class ConnectionCreate(ApiModel):
 class DiagramResponse(ApiModel):
     blocks: list[DiagramBlock] = Field(default_factory=list)
     connections: list[BlockConnection] = Field(default_factory=list)
+
+
+class RefreshDesignResponse(ApiModel):
+    blocks: list[DiagramBlock] = Field(default_factory=list)
+    components: list["ComponentItem"] = Field(default_factory=list)
+    connections: list[BlockConnection] = Field(default_factory=list)
+    removed_block_ids: list[str] = Field(default_factory=list)
 
 
 # ── Components ────────────────────────────────────────────────────────────────
