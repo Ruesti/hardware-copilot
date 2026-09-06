@@ -27,11 +27,12 @@ The LLM never generates raw KiCad files directly. The intended pipeline is:
 - Datasheet fetching via Nexar/Octopart with Claude PDF analysis
 - AI design validation computed from the persisted project state
 - Token/cost tracking per project (`GET /projects/{id}/usage`)
+- **KiCad export**: `GET /projects/{id}/export/kicad` generates a self-contained KiCad 9 schematic scaffold (curated part library for pin facts, AI only supplies net semantics) plus a mapping report; export button in the Workbench tab
 
 **Known gaps:**
 
-- No automated tests yet (backend or frontend)
-- The pipeline currently ends at ASCII schematic sketches — the KiCad export model and generator do not exist yet (next major milestone)
+- Backend has a pytest suite for the KiCad export (28 tests, `kicad-cli sch erc` as oracle); the rest of the backend and the frontend are still untested
+- Datasheet-based pin-map extraction for unknown parts (phase 5.2) is not built yet — parts without a library entry appear in the export report instead
 
 See [`docs/roadmap/phases.md`](docs/roadmap/phases.md) for the phase history and what's next, and [`docs/status/current-baseline.md`](docs/status/current-baseline.md) for a snapshot of what exists today.
 

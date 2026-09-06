@@ -33,6 +33,27 @@ INTERFACE_ROLES = [
     "EN", "BOOT",
 ]
 
+# Fallback-Footprints für Passive nach (Typ, Gehäuse)
+PACKAGE_FOOTPRINTS = {
+    ("passive_resistor", "0402"): "Resistor_SMD:R_0402_1005Metric",
+    ("passive_resistor", "0603"): "Resistor_SMD:R_0603_1608Metric",
+    ("passive_resistor", "0805"): "Resistor_SMD:R_0805_2012Metric",
+    ("passive_capacitor", "0402"): "Capacitor_SMD:C_0402_1005Metric",
+    ("passive_capacitor", "0603"): "Capacitor_SMD:C_0603_1608Metric",
+    ("passive_capacitor", "0805"): "Capacitor_SMD:C_0805_2012Metric",
+}
+
+
+def _footprint_for(part, comp) -> str:
+    if part.footprint:
+        return part.footprint
+    package = (getattr(comp, "package", "") or "").strip()
+    mapped = PACKAGE_FOOTPRINTS.get(((comp.type or ""), package))
+    if mapped:
+        return mapped
+    # rohe Gehäusenamen ("0402", "SOT-23") sind keine gültigen KiCad-Footprints
+    return package if ":" in package else ""
+
 
 @dataclass
 class SymbolInstance:
@@ -81,6 +102,7 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
     # 1) Blocknetze aus Verbindungen
     block_nets: dict[str, set[str]] = {b.id: set() for b in blocks}
     supply_net: dict[str, str] = {}
+    out_net: dict[str, str] = {}
     for conn in connections:
         src, tgt = conn.source_block_id, conn.target_block_id
         if src not in block_by_id or tgt not in block_by_id:
@@ -93,6 +115,7 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
             nets = [net]
             # Versorgungsnetz des Zielblocks (Quelle ist der Versorger)
             supply_net.setdefault(tgt, net)
+            out_net.setdefault(src, net)
         elif ctype == "signal" and _detect_usb_signal(conn.label):
             nets = ["USB_DP", "USB_DN"]
         else:
@@ -101,16 +124,25 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
             block_nets[src].add(net)
             block_nets[tgt].add(net)
 
-    # 3V3-Heuristik: Blöcke ohne eingehendes power, aber mit GND-Anbindung,
-    # bekommen kein Versorgungsnetz — bewusst offen lassen.
+    # Netze, die net_roles innerhalb eines Blocks aufspannen (pullup:EN → "EN"),
+    # damit auch der zugehörige IC-Pin dasselbe Netz bekommt.
+    for comp in components:
+        role = getattr(comp, "net_role", None)
+        if role and comp.block_id in block_nets:
+            _, _, target = role.partition(":")
+            if role == "prog_resistor":
+                target = "PROG"
+            if target:
+                block_nets[comp.block_id].add(target)
 
     # 2) Referenzen deterministisch vergeben (Block-Reihenfolge, dann Komponenten-Reihenfolge)
     counters: dict[str, int] = {}
     block_order = {b.id: i for i, b in enumerate(blocks)}
     comps = sorted(
-        components,
-        key=lambda c: (block_order.get(c.block_id, 999), getattr(c, "id", "")),
+        enumerate(components),
+        key=lambda pair: (block_order.get(pair[1].block_id, 999), pair[0]),
     )
+    comps = [c for _, c in comps]
 
     for comp in comps:
         block = block_by_id.get(comp.block_id)
@@ -127,7 +159,7 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
         counters[prefix] = counters.get(prefix, 0) + 1
         ref = f"{prefix}{counters[prefix]}"
         nets_here = block_nets.get(comp.block_id, set()) if comp.block_id else set()
-        supply = supply_net.get(comp.block_id, "")
+        supply = supply_net.get(comp.block_id, "") or out_net.get(comp.block_id, "")
 
         pin_nets: dict[str, str] = {}
         if comp.net_role:
@@ -147,7 +179,7 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
         model.instances.append(SymbolInstance(
             ref=ref, lib_id=part.lib_id,
             value=comp.value or comp.name or "",
-            footprint=part.footprint or (getattr(comp, "package", "") or ""),
+            footprint=_footprint_for(part, comp),
             block_name=block_name, pin_nets=pin_nets,
             status="mapped" if not library.is_fallback(comp.mpn) else "fallback",
             name=comp.name or "", component_id=getattr(comp, "id", ""),

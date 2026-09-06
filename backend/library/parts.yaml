@@ -33,7 +33,7 @@ parts:
 
   "SHT31-DIS-B":
     lib_id: "Sensor_Humidity:SHT31-DIS"
-    footprint: "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm_SHT3x"
+    footprint: "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm"
     datasheet: "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf"
     validated: true
     role_to_pin:
@@ -57,7 +57,7 @@ parts:
   "XC6220A331MR-G":
     # Symbol der B-Variante; A/B unterscheiden sich in der CE-Logik, Pinout identisch
     lib_id: "Regulator_Linear:XC6220B331MR"
-    footprint: "Package_TO_SOT_SMD:SOT-25"
+    footprint: "Package_TO_SOT_SMD:SOT-23-5"  # SOT-25 ist pinkompatibel zu SOT-23-5
     datasheet: "https://www.torexsemi.com/file/xc6220/XC6220.pdf"
     validated: true
     role_to_pin:
@@ -68,8 +68,22 @@ parts:
 
   "USB4135-GF-A":
     lib_id: "Connector:USB_C_Receptacle_USB2.0_16P"
-    footprint: "Connector_USB:USB_C_Receptacle_GCT_USB4135"
+    footprint: ""  # kein USB4135-Footprint in der KiCad-9-Bibliothek; bewusst leer statt falsch
     datasheet: "https://gct.co/files/drawings/usb4135.pdf"
+    validated: true
+    role_to_pin:
+      VBUS: ["A4", "A9", "B4", "B9"]
+      GND: ["A1", "A12", "B1", "B12", "S1"]
+      CC1: ["A5"]
+      CC2: ["B5"]
+      USB_DP: ["A6", "B6"]
+      USB_DN: ["A7", "B7"]
+
+  "USB4125-GF-A":
+    # Schwestermodell des USB4135 (GCT-Familie, USB 2.0, 16P) — identisches Pinout
+    lib_id: "Connector:USB_C_Receptacle_USB2.0_16P"
+    footprint: ""  # kein USB4125-Footprint in der KiCad-9-Bibliothek; bewusst leer statt falsch
+    datasheet: "https://gct.co/files/drawings/usb4125.pdf"
     validated: true
     role_to_pin:
       VBUS: ["A4", "A9", "B4", "B9"]

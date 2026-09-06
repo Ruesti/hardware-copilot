@@ -146,10 +146,20 @@ Before building the KiCad export, verify the core promise end-to-end: chat in a 
 
 ## Phase 5 — KiCad Export
 
-**Status:** planned
+**Status:** Etappe 5.1 done (2026-09-06), Etappe 5.2 planned
 
 ### Goal
 Extend the pipeline beyond ASCII sketches to its intended end: a deterministic export model and a KiCad generator (`Export Model -> KiCad Generator`). The LLM keeps producing the structured draft; the KiCad files are generated deterministically from the internal model.
+
+### Outcome 5.1 (2026-09-06)
+`GET /projects/{id}/export/kicad` produces a self-contained KiCad 9 `.kicad_sch`
+(embedded symbols, block-grouped placement, net labels, PWR_FLAGs) plus a JSON
+mapping report. Pin facts come from a curated library (`backend/library/parts.yaml`,
+cross-validated against the official KiCad symbols by tests); net semantics come
+from `conn_type` and the new structured `net_role` field the AI now emits.
+First pytest suite of the repo (28 tests) with `kicad-cli sch erc` as oracle;
+E2E-validated against the ESP32 logger test project (26/26 parts, ERC 0 errors).
+Remaining for 5.2: datasheet-based pin-map extraction with user validation.
 
 ---
 

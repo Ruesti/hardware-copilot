@@ -19,3 +19,17 @@ def test_every_library_pin_exists_in_symbol():
                     f"{key}: Rolle {role} nennt Pin {n}, "
                     f"Symbol {part.lib_id} hat nur {sorted(pins)}"
                 )
+
+
+FOOTPRINTS_DIR = __import__("pathlib").Path("/usr/share/kicad/footprints")
+
+
+@requires_kicad
+def test_every_library_footprint_exists():
+    lib = load_library()
+    for key, part in lib.parts.items():
+        if not part.footprint:
+            continue
+        libname, fpname = part.footprint.split(":", 1)
+        path = FOOTPRINTS_DIR / f"{libname}.pretty" / f"{fpname}.kicad_mod"
+        assert path.exists(), f"{key}: Footprint {part.footprint} nicht installiert"
