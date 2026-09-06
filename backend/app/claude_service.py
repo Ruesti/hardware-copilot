@@ -275,7 +275,8 @@ Return a JSON array:
     "manufacturer": "manufacturer name",
     "mpn": "manufacturer part number",
     "description": "one-line description",
-    "trust_level": "parsed"
+    "trust_level": "parsed",
+    "net_role": "for passives/protection parts ONLY - structured net semantics, one of: \"decoupling\" | \"pullup:<ROLE>\" | \"pulldown:<ROLE>\" | \"series:<ROLE>\" | \"protect:<ROLE>\" | \"prog_resistor\" | null. <ROLE> is the logical net the part attaches to: SDA, SCL, SPI_CLK, SPI_MOSI, SPI_MISO, SPI_CS, USB_DP, USB_DN, CC1, CC2, EN, BOOT, STAT. Examples: I2C pull-up on SDA -> \"pullup:SDA\"; decoupling cap -> \"decoupling\"; series resistor in SPI clock -> \"series:SPI_CLK\"; ESD diode on USB D+ -> \"protect:USB_DP\"; MCP73831 PROG resistor -> \"prog_resistor\". For ICs and connectors: null."
   }}
 ]
 
