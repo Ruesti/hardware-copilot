@@ -13,7 +13,7 @@ logger = logging.getLogger("hardware_copilot")
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from app.db import init_db
 from app.models import (
@@ -739,6 +739,33 @@ def refresh_design(
         connections=conns_final,
         removed_block_ids=outcome["removed_block_ids"],
     )
+
+
+# ── KiCad-Export ──────────────────────────────────────────────────────────────
+
+@app.get("/projects/{project_id}/export/kicad")
+def export_kicad(project_id: str) -> Response:
+    _require_project(project_id)
+    from app.kicad.export import run_export
+    try:
+        result = run_export(project_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return Response(
+        content=result.schematic_text,
+        media_type="application/x-kicad-schematic",
+        headers={"Content-Disposition": f'attachment; filename="{project_id}.kicad_sch"'},
+    )
+
+
+@app.get("/projects/{project_id}/export/kicad/report")
+def export_kicad_report(project_id: str) -> dict[str, Any]:
+    _require_project(project_id)
+    from app.kicad.export import run_export
+    try:
+        return run_export(project_id).report
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 # ── Diagram ───────────────────────────────────────────────────────────────────
