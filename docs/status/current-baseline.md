@@ -1,186 +1,63 @@
 # Hardware Copilot – Current Baseline
 
-## Purpose
+**Snapshot date:** 2026-09-06 (verified against the code on `main`, last feature work 2026-05-26)
 
-This document describes the current technical baseline of the Hardware Copilot project.
-
-It is not a roadmap.
-It is a snapshot of what already exists, what is wired up, and which parts are still placeholders or demo-level implementations.
-
-Use this file to understand:
-- what is already working
-- which files currently matter most
-- which assumptions the current architecture is based on
-- where the current limits are
+This document is a snapshot of what exists and works today. It is not a roadmap — see `docs/roadmap/phases.md` for that.
 
 ---
 
 ## Project Goal
 
-Hardware Copilot is intended as a desktop-first engineering workbench for hardware-related development.
-
-The current concept is based on:
-- chat-based requirement input
-- structured technical drafting instead of freeform output only
-- component handling with trust levels
-- validation-centered design workflow
-- later deterministic KiCad generation from an internal model
-
-The planned high-level pipeline is:
+Hardware Copilot is a desktop-first engineering workbench for hardware design. The LLM never generates raw KiCad files directly; the pipeline is:
 
 `Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
 
----
-
-## Current Technical State
-
-The project already has a working baseline across frontend and backend.
-
-Currently working:
-- the desktop shell exists
-- the React frontend is running
-- the FastAPI backend is running
-- the frontend loads project data from the backend
-- the frontend loads requirements from a dedicated endpoint
-- the frontend loads blocks from a dedicated endpoint
-- the frontend loads components from a dedicated endpoint
-- validation is available as a dedicated domain endpoint
-
-Completed phases:
-- Phase 3.1 — Backend Model Hardening
-- Phase 3.2 — Domain API Expansion
-
-Current major phase:
-- Phase 4 — Persistent Projects with SQLite
-
-Planned Phase 4 subphases:
-- Phase 4.1 — SQLite Backend Foundation
-- Phase 4.2 — Project-based Routing
-- Phase 4.3 — Minimal Write API
-- Phase 4.4 — Derived Validation
-
-See:
-- `docs/phases/phase-4-persistent-projects-with-sqlite.md`
-- `docs/phases/phase-4-1-sqlite-backend-foundation.md`
-- `docs/phases/phase-4-2-project-based-routing.md`
-- `docs/phases/phase-4-3-minimal-write-api.md`
-- `docs/phases/phase-4-4-derived-validation.md`
+Today the pipeline is implemented from Chat through Validation. Export Model and KiCad Generator do not exist yet.
 
 ---
 
-## Current API State
+## Architecture
 
-The current backend API exposes the following read endpoints:
-
-- `GET /project`
-- `GET /requirements`
-- `GET /blocks`
-- `GET /components`
-- `GET /validation`
-
-Current endpoint responsibilities:
-
-### `/project`
-Returns lightweight project-level data:
-- `name`
-- `phase`
-- `chatMessages`
-
-### `/requirements`
-Returns:
-- `items`
-
-### `/blocks`
-Returns:
-- `items`
-
-### `/components`
-Returns:
-- `items`
-
-### `/validation`
-Returns:
-- `items`
-
-This means the previous direct frontend dependency on a monolithic project payload has already been reduced.
-
-The `/project` endpoint is now focused on project metadata and chat messages, while requirements, blocks, components, and validation are exposed as separate domain reads.
+- **Tauri** desktop shell around a **React + TypeScript + Vite** frontend
+- **FastAPI** backend with **SQLite** persistence (`backend/data/hardware_copilot.db`, schema + idempotent migrations in `db.py`)
+- **Claude API** integration centralized in `backend/app/claude_service.py` (streaming chat, interview mode, circuit drafting, component/connection suggestions, ASCII schematic generation, design validation, datasheet PDF analysis, token usage tracking)
+- **Nexar/Octopart** datasheet fetcher in `backend/app/datasheet_fetcher.py`
+- Frontend default view is the **Workbench tab**: 3-column layout (Chat | Block diagram via React Flow | Components by assembly), resizable, widths persisted in localStorage
 
 ---
 
-## Current Architecture Assumptions
+## API Surface (~37 endpoints)
 
-The current implementation still assumes a demo-like single project state.
+All domain routes are project-scoped under `/projects/{project_id}`:
 
-Important current characteristics:
-- there is no database yet
-- data is still effectively sample or in-memory driven
-- the API shape is already domain-split
-- the frontend no longer depends on `project.requirements` or `project.blocks`
-- the system is still primarily read-oriented
-
-This is the architectural handoff point into Phase 4.
-
----
-
-## Current Limits
-
-The current baseline is useful as a frontend/backend integration foundation, but it still has clear limits:
-
-- no persistent project storage
-- no explicit project identity
-- no real multi-project model
-- no minimal CRUD foundation for core entities
-- validation is not yet fully derived from a persisted project state
-
-These are intentional limits of the current baseline and are the basis for the next phase.
+- **Projects:** list/create/read/update/delete
+- **Requirements, Blocks, Components:** full CRUD
+- **Connections:** create/delete, plus `GET /diagram` and block position updates
+- **Chat:** history, streaming chat, streaming interview mode, clear
+- **AI actions:** `draft-circuit`, `suggest-components`, `suggest-connections`, `refresh-design` (atomic draft+suggest+connections, used after every AI turn), `describe-circuit` (ASCII schematic per block), `validate-schematic` flag
+- **Validation:** `GET /validation` — computed live by Claude from the persisted project state
+- **Datasheets:** search/fetch with Claude PDF analysis
+- **Usage:** `GET /usage` — Claude token/cost tracking per project
 
 ---
 
-## Why the Current Baseline Matters
+## Known Limits
 
-The current baseline is important because it already established:
-
-- a running desktop shell
-- a functioning frontend/backend integration
-- a typed backend response model
-- domain-level API separation
-- a leaner project endpoint
-- a frontend data flow that can now evolve toward persistent project-based storage
-
-That means the next step does not need to redesign the whole application.
-It needs to add persistence and project identity on top of the existing domain split.
+- **No automated tests** (backend or frontend)
+- **No KiCad export** — the pipeline ends at per-block ASCII schematic sketches
+- Validation is LLM-based, not deterministic/rule-based
+- Claude model is pinned as a constant in `claude_service.py` (`MODEL`)
+- No auth, no cloud sync, single-user local app (intentional for now)
 
 ---
 
-## Immediate Next Architectural Step
+## Where to Look First
 
-The next architectural step is Phase 4, broken into four sequential subphases.
-
-### Phase 4.1 — SQLite Backend Foundation
-Introduce SQLite persistence beneath the current read API and move the backend source of truth from sample/in-memory structures to persistent storage.
-
-### Phase 4.2 — Project-based Routing
-Introduce explicit project identity and move from implicit single-project routing to project-scoped read routes.
-
-### Phase 4.3 — Minimal Write API
-Introduce the first create/update endpoints for persisted project entities.
-
-### Phase 4.4 — Derived Validation
-Turn validation into a computed domain derived from persisted project state.
-
-This work is defined in:
-
-- `docs/phases/phase-4-persistent-projects-with-sqlite.md`
-- `docs/phases/phase-4-1-sqlite-backend-foundation.md`
-- `docs/phases/phase-4-2-project-based-routing.md`
-- `docs/phases/phase-4-3-minimal-write-api.md`
-- `docs/phases/phase-4-4-derived-validation.md`
-
----
-
-## End of Current Baseline
-
-At the current baseline, Hardware Copilot has already outgrown a pure frontend mock/demo structure, but it has not yet reached a persistent application-grade project model.
-
-That transition is the purpose of Phase 4.
+| Concern | File |
+|---|---|
+| Routes | `backend/app/main.py` |
+| Prompts + Claude calls | `backend/app/claude_service.py` |
+| Data access | `backend/app/repository.py` |
+| Schema/migrations | `backend/app/db.py` |
+| Workbench UI | `src/App.tsx` + `src/components/` |
+| API clients | `src/api/` |

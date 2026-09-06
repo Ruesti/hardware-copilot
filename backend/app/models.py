@@ -97,6 +97,8 @@ class DesignBlock(ApiModel):
     name: str
     description: str
     trust_level: TrustLevel = TrustLevel.NEW
+    schematic_ascii: str | None = None
+    schematic_validated: bool = False
 
 
 class DesignBlockCreate(ApiModel):
@@ -195,6 +197,7 @@ class ComponentItem(ApiModel):
     description: str = ""
     trust_level: TrustLevel = TrustLevel.NEW
     block_id: str | None = None
+    net_role: str | None = None
 
 
 class ComponentCreate(ApiModel):
@@ -207,6 +210,7 @@ class ComponentCreate(ApiModel):
     description: str = ""
     trust_level: TrustLevel = TrustLevel.NEW
     block_id: str | None = None
+    net_role: str | None = None
 
 
 class ComponentUpdate(ApiModel):
@@ -219,6 +223,7 @@ class ComponentUpdate(ApiModel):
     description: str | None = None
     trust_level: TrustLevel | None = None
     block_id: str | None = None
+    net_role: str | None = None
 
 
 class ComponentsResponse(ApiModel):

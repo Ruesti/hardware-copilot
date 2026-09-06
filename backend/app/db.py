@@ -118,6 +118,8 @@ def init_db() -> None:
             conn.execute("ALTER TABLE blocks ADD COLUMN schematic_ascii TEXT")
         if not _column_exists(conn, "blocks", "schematic_validated"):
             conn.execute("ALTER TABLE blocks ADD COLUMN schematic_validated INTEGER NOT NULL DEFAULT 0")
+        if not _column_exists(conn, "components", "net_role"):
+            conn.execute("ALTER TABLE components ADD COLUMN net_role TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS claude_usage (

@@ -7,6 +7,7 @@ import { refreshDesign } from "../../api/components";
 import { fetchDiagram } from "../../api/diagram";
 import { fetchComponents } from "../../api/components";
 import { fetchUsage, type UsageSummary } from "../../api/usage";
+import { fetchExportReport, kicadDownloadUrl, type ExportReport } from "../../api/export";
 import type {
   BlockConnection,
   ChatMessage,
@@ -74,6 +75,9 @@ export function WorkbenchPanel({
 }: Props) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportReport, setExportReport] = useState<ExportReport | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
   const [mode, setMode] = useState<SchematicMode>(loadInitialMode);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [colLeft, setColLeft] = useState<number>(() => loadColWidth(COL_LEFT_KEY, COL_LEFT_DEFAULT));
@@ -251,6 +255,31 @@ export function WorkbenchPanel({
         </span>
         <div style={{ flex: 1 }} />
 
+        {/* KiCad-Export */}
+        <button
+          onClick={() => {
+            setExportLoading(true);
+            setExportError(null);
+            fetchExportReport(projectId)
+              .then(setExportReport)
+              .catch((err) => setExportError(String(err?.message ?? err)))
+              .finally(() => setExportLoading(false));
+          }}
+          disabled={exportLoading}
+          style={{
+            background: "#0c0c0f",
+            border: "1px solid #27272a",
+            borderRadius: 8,
+            color: "#a1a1aa",
+            padding: "4px 10px",
+            fontSize: 11,
+            cursor: exportLoading ? "wait" : "pointer",
+          }}
+          title="Schaltplan-Gerüst als KiCad-9-Datei exportieren"
+        >
+          ⬇ KiCad{exportLoading ? "…" : ""}
+        </button>
+
         {/* Token-Anzeige */}
         {usage && (
           <div
@@ -415,6 +444,85 @@ export function WorkbenchPanel({
           onClose={() => setOpenBlockId(null)}
           onBlockChange={(patch) => updateBlockInState(openBlock.id, patch)}
         />
+      )}
+
+      {(exportReport || exportError) && (
+        <div
+          onClick={() => { setExportReport(null); setExportError(null); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0c0c0f", border: "1px solid #27272a", borderRadius: 12,
+              padding: 20, width: 460, maxHeight: "70vh", overflowY: "auto",
+              color: "#e4e4e7", fontSize: 13,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>KiCad-Export</div>
+            {exportError ? (
+              <div style={{ color: "#f87171" }}>{exportError}</div>
+            ) : exportReport ? (
+              <>
+                <div style={{ display: "flex", gap: 14, marginBottom: 12, fontSize: 12 }}>
+                  <span style={{ color: "#86efac" }}>{exportReport.counts.mapped} gemappt</span>
+                  <span style={{ color: "#a1a1aa" }}>{exportReport.counts.fallback} Standard</span>
+                  <span style={{ color: "#fbbf24" }}>{exportReport.counts.unverified} unbestätigt</span>
+                  <span style={{ color: "#f87171" }}>{exportReport.counts.unmapped} ohne Symbol</span>
+                </div>
+                {exportReport.unmapped.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 4 }}>
+                      Nicht exportierbar (kein Bibliothekseintrag):
+                    </div>
+                    {exportReport.unmapped.map((u, i) => (
+                      <div key={i} style={{ fontSize: 12, color: "#a1a1aa" }}>
+                        · {u.name ?? u.mpn ?? "?"} ({u.block_name})
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {exportReport.warnings.length > 0 && (
+                  <details style={{ marginBottom: 10 }}>
+                    <summary style={{ cursor: "pointer", fontSize: 12, color: "#fbbf24" }}>
+                      {exportReport.warnings.length} Hinweise
+                    </summary>
+                    {exportReport.warnings.map((w, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "#a1a1aa", marginTop: 4 }}>
+                        · {w}
+                      </div>
+                    ))}
+                  </details>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <a
+                    href={kicadDownloadUrl(projectId)}
+                    download
+                    style={{
+                      background: "#16a34a", color: "#fff", borderRadius: 8,
+                      padding: "6px 14px", fontSize: 12, textDecoration: "none",
+                    }}
+                  >
+                    .kicad_sch herunterladen
+                  </a>
+                  <button
+                    onClick={() => { setExportReport(null); setExportError(null); }}
+                    style={{
+                      background: "transparent", border: "1px solid #27272a",
+                      borderRadius: 8, color: "#a1a1aa", padding: "6px 14px",
+                      fontSize: 12, cursor: "pointer",
+                    }}
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
       )}
     </div>
   );

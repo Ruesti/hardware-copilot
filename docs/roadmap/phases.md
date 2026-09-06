@@ -68,8 +68,8 @@ This phase is completed.
 
 ## Phase 4 — Persistent Projects with SQLite
 
-**Status:** active  
-**Result:** current major phase
+**Status:** done  
+**Result:** baseline
 
 ### Goal
 Move from a demo-like in-memory single-project state to a persistent SQLite-backed project model while preserving the domain API split introduced in Phase 3.2.
@@ -118,6 +118,57 @@ Phase 4 does not include:
 - auth
 - cloud sync
 - collaboration
+
+### Outcome (2026-06)
+
+All four subphases were delivered, and the work went beyond the original scope. The backend is SQLite-backed with explicit project identity, project-scoped routes (`/projects/{id}/...`), full CRUD for requirements/blocks/components/connections, and validation computed live from the persisted project state (via Claude, not yet rule-based).
+
+Delivered beyond the Phase 4 scope:
+- Workbench tab: 3-column layout (Chat | Block diagram | Components by assembly)
+- Streaming Claude chat with interview mode and automatic design refresh after every AI turn (`POST /projects/{id}/refresh-design`)
+- Block diagram via React Flow with typed connections and auto-layout
+- Per-block ASCII schematic sketches (background generation, manual validated-flag)
+- Component suggestions including MCU support circuitry
+- Nexar/Octopart datasheet fetching with Claude PDF analysis
+- Token/cost tracking per project
+
+This phase is completed.
+
+---
+
+## Verification Gate — Can the app produce a working schematic?
+
+**Status:** open
+
+Before building the KiCad export, verify the core promise end-to-end: chat in a real device brief, let the app draft the circuit, and assess whether the resulting blocks, connections, component choices, and ASCII schematics are electrically sound. Findings feed directly into the Phase 5 scope.
+
+---
+
+## Phase 5 — KiCad Export
+
+**Status:** Etappe 5.1 done (2026-09-06), Etappe 5.2 planned
+
+### Goal
+Extend the pipeline beyond ASCII sketches to its intended end: a deterministic export model and a KiCad generator (`Export Model -> KiCad Generator`). The LLM keeps producing the structured draft; the KiCad files are generated deterministically from the internal model.
+
+### Outcome 5.1 (2026-09-06)
+`GET /projects/{id}/export/kicad` produces a self-contained KiCad 9 `.kicad_sch`
+(embedded symbols, block-grouped placement, net labels, PWR_FLAGs) plus a JSON
+mapping report. Pin facts come from a curated library (`backend/library/parts.yaml`,
+cross-validated against the official KiCad symbols by tests); net semantics come
+from `conn_type` and the new structured `net_role` field the AI now emits.
+First pytest suite of the repo (28 tests) with `kicad-cli sch erc` as oracle;
+E2E-validated against the ESP32 logger test project (26/26 parts, ERC 0 errors).
+Remaining for 5.2: datasheet-based pin-map extraction with user validation.
+
+---
+
+## Phase 6 — UI Redesign
+
+**Status:** planned
+
+### Goal
+Redesign the workbench UI once the core pipeline (through KiCad export) is functional.
 - KiCad export
 - advanced AI implementation flows
 - version history systems

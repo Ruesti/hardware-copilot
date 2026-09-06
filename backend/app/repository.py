@@ -171,7 +171,8 @@ def delete_requirement(project_id: str, req_id: str) -> bool:
 def list_blocks(project_id: str) -> list[DesignBlock]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, name, description, trust_level FROM blocks "
+            "SELECT id, name, description, trust_level, schematic_ascii, "
+            "COALESCE(schematic_validated, 0) AS schematic_validated FROM blocks "
             "WHERE project_id=? ORDER BY order_index ASC, id ASC",
             (project_id,),
         ).fetchall()
@@ -179,6 +180,8 @@ def list_blocks(project_id: str) -> list[DesignBlock]:
         DesignBlock(
             id=r["id"], name=r["name"], description=r["description"],
             trust_level=_trust(r["trust_level"]),
+            schematic_ascii=r["schematic_ascii"],
+            schematic_validated=bool(r["schematic_validated"]),
         )
         for r in rows
     ]
@@ -246,13 +249,14 @@ def _row_to_component(row: Any) -> ComponentItem:
         description=row["description"] or "",
         trust_level=_trust(row["trust_level"]),
         block_id=row["block_id"],
+        net_role=row["net_role"],
     )
 
 
 def list_components(project_id: str) -> list[ComponentItem]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level "
+            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level, net_role "
             "FROM components WHERE project_id=? ORDER BY order_index ASC, id ASC",
             (project_id,),
         ).fetchall()
@@ -268,25 +272,26 @@ def create_component(project_id: str, data: ComponentCreate) -> ComponentItem:
         ).fetchone()["n"]
         conn.execute(
             "INSERT INTO components "
-            "(id, project_id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level, order_index) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "(id, project_id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level, net_role, order_index) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 cid, project_id, data.block_id, data.name, data.type,
                 data.value, data.package, data.manufacturer, data.mpn,
-                data.description, data.trust_level.value, idx,
+                data.description, data.trust_level.value, data.net_role, idx,
             ),
         )
     return ComponentItem(
         id=cid, name=data.name, type=data.type, value=data.value,
         package=data.package, manufacturer=data.manufacturer, mpn=data.mpn,
         description=data.description, trust_level=data.trust_level, block_id=data.block_id,
+        net_role=data.net_role,
     )
 
 
 def update_component(project_id: str, cmp_id: str, data: ComponentUpdate) -> ComponentItem | None:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level "
+            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level, net_role "
             "FROM components WHERE id=? AND project_id=?",
             (cmp_id, project_id),
         ).fetchone()
@@ -301,10 +306,11 @@ def update_component(project_id: str, cmp_id: str, data: ComponentUpdate) -> Com
         desc = data.description if data.description is not None else row["description"]
         tl = data.trust_level.value if data.trust_level is not None else row["trust_level"]
         bid = data.block_id if data.block_id is not None else row["block_id"]
+        nrole = data.net_role if data.net_role is not None else row["net_role"]
         conn.execute(
             "UPDATE components SET name=?, type=?, value=?, package=?, manufacturer=?, mpn=?, "
-            "description=?, trust_level=?, block_id=? WHERE id=?",
-            (name, ctype, value, package, mfr, mpn, desc, tl, bid, cmp_id),
+            "description=?, trust_level=?, block_id=?, net_role=? WHERE id=?",
+            (name, ctype, value, package, mfr, mpn, desc, tl, bid, nrole, cmp_id),
         )
     return ComponentItem(
         id=cmp_id, name=name, type=ctype, value=value, package=package,
@@ -336,6 +342,7 @@ def bulk_create_components(project_id: str, items: list[dict[str, Any]]) -> list
             description=item.get("description", ""),
             trust_level=TrustLevel(item.get("trust_level", "parsed")),
             block_id=block_id,
+            net_role=item.get("net_role"),
         )
         created.append(create_component(project_id, data))
     return created
@@ -614,7 +621,7 @@ def find_block_by_name(project_id: str, name: str) -> DesignBlock | None:
 def get_block_components(project_id: str, block_id: str) -> list[ComponentItem]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level "
+            "SELECT id, block_id, name, type, value, package, manufacturer, mpn, description, trust_level, net_role "
             "FROM components WHERE project_id=? AND block_id=? ORDER BY order_index ASC, id ASC",
             (project_id, block_id),
         ).fetchall()
