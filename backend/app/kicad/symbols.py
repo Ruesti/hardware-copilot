@@ -23,6 +23,7 @@ class Pin:
     x: float
     y: float
     rotation: int
+    etype: str = "passive"  # z. B. power_in, power_out, input, output, bidirectional
 
 
 @lru_cache(maxsize=64)
@@ -103,6 +104,7 @@ def symbol_pins(node: list) -> list[Pin]:
                         x=float(at[1]),
                         y=float(at[2]),
                         rotation=int(float(at[3])) if len(at) > 3 else 0,
+                        etype=str(child[1]) if len(child) > 1 and isinstance(child[1], str) else "passive",
                     ))
                 else:
                     walk(child)
