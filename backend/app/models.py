@@ -97,6 +97,8 @@ class DesignBlock(ApiModel):
     name: str
     description: str
     trust_level: TrustLevel = TrustLevel.NEW
+    schematic_ascii: str | None = None
+    schematic_validated: bool = False
 
 
 class DesignBlockCreate(ApiModel):

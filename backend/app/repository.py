@@ -171,7 +171,8 @@ def delete_requirement(project_id: str, req_id: str) -> bool:
 def list_blocks(project_id: str) -> list[DesignBlock]:
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT id, name, description, trust_level FROM blocks "
+            "SELECT id, name, description, trust_level, schematic_ascii, "
+            "COALESCE(schematic_validated, 0) AS schematic_validated FROM blocks "
             "WHERE project_id=? ORDER BY order_index ASC, id ASC",
             (project_id,),
         ).fetchall()
@@ -179,6 +180,8 @@ def list_blocks(project_id: str) -> list[DesignBlock]:
         DesignBlock(
             id=r["id"], name=r["name"], description=r["description"],
             trust_level=_trust(r["trust_level"]),
+            schematic_ascii=r["schematic_ascii"],
+            schematic_validated=bool(r["schematic_validated"]),
         )
         for r in rows
     ]
