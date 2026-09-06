@@ -1,0 +1,125 @@
+# Kuratierte Bauteil-Bibliothek für den KiCad-Export.
+#
+# Pin-Nummern stammen aus den offiziellen KiCad-9-Symbolen (Community-reviewt);
+# jede role_to_pin-Angabe wird per Test gegen das installierte Symbol geprüft
+# (tests/test_library_symbols.py). MCP73831 zusätzlich gegen Microchip-Datenblatt
+# DS20001984H verifiziert (2026-09-06).
+#
+# Rollen-Vokabular: VDD, GND, SDA, SCL, SPI_CLK, SPI_MOSI, SPI_MISO, SPI_CS,
+# USB_DP, USB_DN, VBUS, VBAT, VOUT, VIN, EN, BOOT, STAT, PROG, CC1, CC2, P1, P2.
+#
+# Interface-Zuordnungen bei MCUs (welcher GPIO ist SDA usw.) sind bewusste
+# Design-Festlegungen dieses Projekts, keine Datenblatt-Fakten.
+
+parts:
+  "ESP32-S3-WROOM-1-N8":
+    lib_id: "RF_Module:ESP32-S3-WROOM-1"
+    footprint: "RF_Module:ESP32-S3-WROOM-1"
+    datasheet: "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf"
+    validated: true
+    role_to_pin:
+      VDD: ["2"]          # 3V3
+      GND: ["1", "40", "41"]
+      EN: ["3"]
+      BOOT: ["27"]        # IO0 (Boot-Strapping)
+      SDA: ["12"]         # IO8  — Projekt-Festlegung
+      SCL: ["17"]         # IO9  — Projekt-Festlegung
+      SPI_CS: ["18"]      # IO10 — Projekt-Festlegung
+      SPI_MOSI: ["19"]    # IO11 — Projekt-Festlegung
+      SPI_CLK: ["20"]     # IO12 — Projekt-Festlegung
+      SPI_MISO: ["21"]    # IO13 — Projekt-Festlegung
+      USB_DN: ["13"]      # USB_D-
+      USB_DP: ["14"]      # USB_D+
+
+  "SHT31-DIS-B":
+    lib_id: "Sensor_Humidity:SHT31-DIS"
+    footprint: "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm_SHT3x"
+    datasheet: "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf"
+    validated: true
+    role_to_pin:
+      SDA: ["1"]
+      SCL: ["4"]
+      VDD: ["5"]
+      GND: ["8", "9"]     # VSS; Pin 2 (ADDR), 6 (nRESET), 7 (R) bewusst offen — User entscheidet
+
+  "MCP73831T-2ACI/OT":
+    lib_id: "Battery_Management:MCP73831-2-OT"
+    footprint: "Package_TO_SOT_SMD:SOT-23-5"
+    datasheet: "https://ww1.microchip.com/downloads/en/DeviceDoc/MCP73831-Family-Data-Sheet-DS20001984H.pdf"
+    validated: true
+    role_to_pin:
+      STAT: ["1"]
+      GND: ["2"]          # VSS
+      VBAT: ["3"]
+      VDD: ["4"]          # = VBUS-Eingang
+      PROG: ["5"]
+
+  "XC6220A331MR-G":
+    # Symbol der B-Variante; A/B unterscheiden sich in der CE-Logik, Pinout identisch
+    lib_id: "Regulator_Linear:XC6220B331MR"
+    footprint: "Package_TO_SOT_SMD:SOT-25"
+    datasheet: "https://www.torexsemi.com/file/xc6220/XC6220.pdf"
+    validated: true
+    role_to_pin:
+      VIN: ["1"]
+      GND: ["2"]
+      EN: ["3"]           # CE
+      VOUT: ["5"]         # Pin 4 = NC
+
+  "USB4135-GF-A":
+    lib_id: "Connector:USB_C_Receptacle_USB2.0_16P"
+    footprint: "Connector_USB:USB_C_Receptacle_GCT_USB4135"
+    datasheet: "https://gct.co/files/drawings/usb4135.pdf"
+    validated: true
+    role_to_pin:
+      VBUS: ["A4", "A9", "B4", "B9"]
+      GND: ["A1", "A12", "B1", "B12", "S1"]
+      CC1: ["A5"]
+      CC2: ["B5"]
+      USB_DP: ["A6", "B6"]
+      USB_DN: ["A7", "B7"]
+
+  "DM3AT-SF-PEJM5":
+    lib_id: "Connector:Micro_SD_Card_Det1"
+    footprint: "Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5"
+    datasheet: "https://www.hirose.com/product/document?clcode=CL0609-0031-1-00&productname=DM3AT-SF-PEJM5&series=DM3&documenttype=2DDrawing"
+    validated: true
+    role_to_pin:            # SPI-Modus
+      SPI_CS: ["2"]         # DAT3/CD
+      SPI_MOSI: ["3"]       # CMD
+      VDD: ["4"]
+      SPI_CLK: ["5"]        # CLK
+      GND: ["6", "10"]      # VSS + SHIELD
+      SPI_MISO: ["7"]       # DAT0; Pin 8 (DAT1), 9 (DET) bewusst offen
+
+  "S2B-PH-K-S":
+    lib_id: "Connector:Conn_01x02_Pin"
+    footprint: "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal"
+    datasheet: "https://www.jst.com/wp-content/uploads/2021/01/ePH.pdf"
+    validated: true
+    role_to_pin:
+      VBAT: ["1"]
+      GND: ["2"]
+
+  "ESD5Z5.0T1G":
+    lib_id: "Diode:ESD5Zxx"
+    footprint: "Diode_SMD:D_SOD-523"
+    datasheet: "https://www.onsemi.com/pdf/datasheet/esd5z-d.pdf"
+    validated: true
+    role_to_pin:
+      P1: ["1"]           # Kathode → Signalnetz
+      P2: ["2"]           # Anode → GND
+
+type_fallbacks:
+  passive_resistor:
+    lib_id: "Device:R"
+    footprint: ""
+    role_to_pin: {P1: ["1"], P2: ["2"]}
+  passive_capacitor:
+    lib_id: "Device:C"
+    footprint: ""
+    role_to_pin: {P1: ["1"], P2: ["2"]}
+  protection:
+    lib_id: "Diode:ESD5Zxx"
+    footprint: ""
+    role_to_pin: {P1: ["1"], P2: ["2"]}
