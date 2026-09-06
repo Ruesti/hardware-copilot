@@ -1,182 +1,112 @@
-## Development Status
+# Hardware Copilot
 
-Hardware Copilot is being built as a desktop-first engineering workbench for hardware-related design workflows.
+Hardware Copilot is a desktop-first engineering workbench for hardware design workflows: describe a device in chat, get a structured requirements spec, a block-level circuit draft with suggested components and connections, per-block schematic sketches, and AI-driven design validation.
 
-The current direction is not to let an LLM generate raw KiCad files directly.
-Instead, the intended pipeline is:
+The LLM never generates raw KiCad files directly. The intended pipeline is:
 
 `Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
 
-### Current Baseline
+## Tech Stack
 
-The project already includes a working technical foundation:
+- **Desktop shell:** Tauri
+- **Frontend:** React + TypeScript + Vite
+- **Backend:** Python + FastAPI + SQLite
+- **AI:** Anthropic Claude API (chat, circuit drafting, component/connection suggestions, schematic generation, validation, datasheet analysis)
+- **Datasheets:** Nexar/Octopart API
 
-- Tauri desktop shell
-- React + TypeScript + Vite frontend
-- Python + FastAPI backend
-- panel-based workbench UI
-- selection-driven inspector interaction
-- initial backend integration via `GET /project`
-- reproducible local development scripts
+## Current Status
 
-So the project is already beyond pure mockup stage.
+**Phases 3.1–4 are complete.** The app is a working AI workbench:
 
-See:
-- [`docs/status/current-baseline.md`](docs/status/current-baseline.md)
+- Persistent multi-project storage (SQLite), project-scoped REST API (~37 endpoints)
+- Workbench tab: 3-column layout (Chat | Block diagram | Components by assembly) with resizable panels
+- Streaming Claude chat with interview mode; the design (blocks, connections, components) refreshes automatically after every AI turn
+- Block diagram (React Flow) with auto-layout, drag-to-reposition, and typed connections
+- Per-block ASCII schematic sketches, generated in the background, with a manual "validated" flag that protects them from being overwritten
+- Component suggestions including MCU support circuitry (decoupling, pull-ups, boot strapping, reset, crystal/USB-UART)
+- Datasheet fetching via Nexar/Octopart with Claude PDF analysis
+- AI design validation computed from the persisted project state
+- Token/cost tracking per project (`GET /projects/{id}/usage`)
 
-### Current Active Phase
+**Known gaps:**
 
-**Phase 3.1 — Backend Model Hardening**
+- No automated tests yet (backend or frontend)
+- The pipeline currently ends at ASCII schematic sketches — the KiCad export model and generator do not exist yet (next major milestone)
 
-Current focus:
-- introduce Pydantic models
-- stabilize API response structures
-- align backend models more closely with frontend types
-- prepare the backend for persistence and domain growth
+See [`docs/roadmap/phases.md`](docs/roadmap/phases.md) for the phase history and what's next, and [`docs/status/current-baseline.md`](docs/status/current-baseline.md) for a snapshot of what exists today.
 
-See:
-- [`docs/roadmap/phases.md`](docs/roadmap/phases.md)
+## Setup
 
-### Next Planned Steps
-
-- expand the backend API beyond `/project`
-- introduce SQLite persistence
-- build a real component library screen
-- expand validation logic
-- connect the chat workflow to structured technical draft generation
-
-### Local Development
-
-Typical setup on a fresh machine:
-
-```bash
-git clone <repo>
-cd hardware-copilot
-./bootstrap.sh
-./start_dev.sh
-
-# 1. Voraussetzungen installieren
-
-## Ubuntu / Debian
+### 1. System prerequisites (Ubuntu/Debian)
 
 ```bash
 sudo apt update
 sudo apt install -y \
-  python3 \
-  python3-venv \
-  python3-pip \
-  nodejs \
-  npm \
-  libwebkit2gtk-4.1-dev \
-  build-essential \
-  curl \
-  wget \
-  file \
-  libxdo-dev \
-  libssl-dev \
-  libayatana-appindicator3-dev \
-  librsvg2-dev
+  python3 python3-venv python3-pip \
+  nodejs npm \
+  libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
----
-
-# 2. Rust installieren
-
-Falls noch nicht vorhanden:
+Rust (required by Tauri), if not installed yet:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 ```
 
----
+### 2. API keys
 
-# 3. Projekt vorbereiten (nur beim ersten Mal oder auf neuem Rechner)
+All AI features require an Anthropic API key. Datasheet search additionally needs Nexar credentials (free registration at https://nexar.com/api).
+
+```bash
+cp backend/.env.example backend/.env
+# then edit backend/.env and fill in the keys
+```
+
+### 3. Bootstrap (first time on a machine)
 
 ```bash
 ./bootstrap.sh
 ```
 
-Dieses Skript erledigt:
+This creates the Python virtual environment and installs Python and Node dependencies.
 
-- Python virtual environment erzeugen
-- Python-Abhängigkeiten installieren
-- Node-Abhängigkeiten installieren
-
----
-
-# 4. Entwicklung starten
+### 4. Run
 
 ```bash
-./start_dev.sh
+./start_dev.sh      # backend + Tauri frontend together
 ```
 
-Dieses Skript startet:
-
-- FastAPI Backend
-- Tauri Frontend
-
----
-
-# 5. Einzelstart falls nötig
-
-## Backend
+Or individually:
 
 ```bash
-./start_backend.sh
+./start_backend.sh  # FastAPI backend only (http://127.0.0.1:8000)
+./start_tauri.sh    # Tauri frontend only
 ```
 
-## Tauri
-
-```bash
-./start_tauri.sh
-```
-
----
-
-# 6. Projektstruktur
+## Project Structure
 
 ```text
 hardware-copilot/
 ├── backend/
 │   ├── app/
-│   │   └── main.py
+│   │   ├── main.py               # FastAPI routes (~37 endpoints)
+│   │   ├── claude_service.py     # all Claude API calls + prompts
+│   │   ├── datasheet_fetcher.py  # Nexar/Octopart integration
+│   │   ├── repository.py         # SQLite data access
+│   │   ├── db.py                 # schema + migrations
+│   │   └── models.py             # Pydantic models
+│   ├── data/                     # SQLite database (gitignored)
 │   ├── requirements.txt
-│   └── .venv/
-│
-├── src/
-├── src-tauri/
-│
-├── bootstrap.sh
-├── start_backend.sh
-├── start_tauri.sh
-├── start_dev.sh
-│
-├── package.json
-├── package-lock.json
-├── README.md
-└── .gitignore
+│   └── .env                      # API keys (gitignored, see .env.example)
+├── src/                          # React frontend
+├── src-tauri/                    # Tauri shell
+└── docs/                         # roadmap, phase specs, status snapshots
 ```
 
----
-
-# 7. Auf neuem Rechner weiterarbeiten
+## Version Check
 
 ```bash
-git clone <repo>
-cd hardware-copilot
-./bootstrap.sh
-./start_dev.sh
-```
-
----
-
-# 8. Versionsprüfung
-
-```bash
-python3 --version
-node -v
-npm -v
-rustc --version
-cargo --version
+python3 --version && node -v && npm -v && rustc --version && cargo --version
 ```
