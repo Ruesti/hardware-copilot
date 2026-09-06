@@ -741,6 +741,20 @@ def refresh_design(
     )
 
 
+# ── KiCad-System ──────────────────────────────────────────────────────────────
+
+@app.get("/system/kicad")
+def system_kicad_status() -> dict[str, Any]:
+    from app.kicad.system import kicad_status
+    return kicad_status()
+
+
+@app.post("/system/kicad/install")
+def system_kicad_install() -> dict[str, Any]:
+    from app.kicad.system import start_install
+    return start_install()
+
+
 # ── KiCad-Export ──────────────────────────────────────────────────────────────
 
 @app.get("/projects/{project_id}/export/kicad")
@@ -766,6 +780,47 @@ def export_kicad_report(project_id: str, mount: str = "smd") -> dict[str, Any]:
     from app.kicad.export import run_export
     try:
         return run_export(project_id, mount=mount).report
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/projects/{project_id}/export/kicad/pcb")
+def export_kicad_pcb(project_id: str, mount: str = "smd") -> Response:
+    _require_project(project_id)
+    from app.kicad.export import project_slug, run_pcb
+    try:
+        pcb_bytes, _skipped = run_pcb(project_id, mount=mount)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except (FileNotFoundError, RuntimeError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    slug = project_slug(project_id)
+    return Response(
+        content=pcb_bytes,
+        media_type="application/x-kicad-pcb",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.kicad_pcb"'},
+    )
+
+
+@app.get("/projects/{project_id}/export/kicad/guide")
+def export_kicad_guide(project_id: str, mount: str = "smd") -> Response:
+    _require_project(project_id)
+    from app.kicad.export import run_guide
+    try:
+        html_text = run_guide(project_id, mount=mount)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return Response(content=html_text, media_type="text/html; charset=utf-8")
+
+
+@app.post("/projects/{project_id}/export/kicad/open")
+def export_kicad_open(project_id: str, mount: str = "smd") -> dict[str, Any]:
+    _require_project(project_id)
+    from app.kicad.export import run_open
+    try:
+        return run_open(project_id, mount=mount)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except FileNotFoundError as exc:

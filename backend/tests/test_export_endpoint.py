@@ -67,3 +67,54 @@ def test_export_unknown_project_404(seeded_client):
     client, _ = seeded_client
     r = client.get("/projects/prj-gibtsnicht/export/kicad")
     assert r.status_code == 404
+
+
+@requires_kicad
+def test_pcb_endpoint(seeded_client):
+    from app.kicad.pcb import pcbnew_available
+    import pytest as _pytest
+    if not pcbnew_available():
+        _pytest.skip("pcbnew nicht verfügbar")
+    client, pid = seeded_client
+    r = client.get(f"/projects/{pid}/export/kicad/pcb")
+    assert r.status_code == 200
+    assert r.content.startswith(b"(kicad_pcb")
+
+
+@requires_kicad
+def test_guide_endpoint(seeded_client):
+    client, pid = seeded_client
+    r = client.get(f"/projects/{pid}/export/kicad/guide")
+    assert r.status_code == 200
+    assert "Routing-Anleitung" in r.text
+    assert "Einsteiger" in r.text and "Fortgeschritten" in r.text
+
+
+@requires_kicad
+def test_open_endpoint_headless(seeded_client, tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    from pathlib import Path as _P
+    monkeypatch.setattr(_P, "home", classmethod(lambda cls: tmp_path))
+    client, pid = seeded_client
+    r = client.post(f"/projects/{pid}/export/kicad/open")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["opened"] is False and "Display" in (data["reason"] or "")
+    files = set(data["files"])
+    assert any(f.endswith(".kicad_sch") for f in files)
+    assert any(f.endswith(".kicad_pro") for f in files)
+    assert "routing-anleitung.html" in files
+    import json as _json
+    pro = next(f for f in files if f.endswith(".kicad_pro"))
+    rules = _json.loads((tmp_path / "HardwareCopilot").rglob(pro).__next__().read_text())
+    assert rules["board"]["design_settings"]["rules"]["min_through_hole_diameter"] == 0.2
+
+
+def test_system_kicad_status(seeded_client):
+    client, _ = seeded_client
+    r = client.get("/system/kicad")
+    assert r.status_code == 200
+    data = r.json()
+    assert {"installed", "version", "pcbnew", "installHint"} <= set(data)

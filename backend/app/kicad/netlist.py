@@ -56,6 +56,7 @@ class SymbolInstance:
     status: str  # "mapped" | "fallback" | "unverified"
     name: str = ""
     component_id: str = ""
+    net_role: str | None = None
 
 
 @dataclass
@@ -174,6 +175,7 @@ def build_export_model(blocks, connections, components, library: Library,
             block_name=block_name, pin_nets=pin_nets,
             status="mapped" if not library.is_fallback(comp.mpn) else "fallback",
             name=comp.name or "", component_id=getattr(comp, "id", ""),
+            net_role=getattr(comp, "net_role", None),
         ))
     return model
 
