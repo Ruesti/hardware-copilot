@@ -12,6 +12,7 @@ ERC-Regeln, die der Writer aktiv bedient:
 """
 from __future__ import annotations
 
+import math
 import uuid
 from collections import Counter
 from pathlib import Path
@@ -22,6 +23,7 @@ from .symbols import Pin, extract_symbol, symbol_pins
 
 EXPORT_NS = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 GRID = 1.27
+STUB_LEN = 2.54  # Leitungsstummel an belegten Pins (2 Rasterschritte)
 COL_WIDTH = 90.0        # mm pro Funktionsblock-Spalte
 IC_X_OFF = 30.0
 PASSIVE_X_OFF = 62.0
@@ -113,7 +115,9 @@ def write_schematic(model: ExportModel, symbols_dir: Path, project_name: str) ->
             net = inst.pin_nets.get(pin.number)
             px, py, prot = _pin_position(pin, x, y)
             if net and net not in single_point:
-                label_parts.append(_label_node(net, px, py, prot, inst.ref, pin.number))
+                ex, ey = _stub_end(pin, px, py)
+                label_parts.append(_wire_node(px, py, ex, ey, inst.ref, pin.number))
+                label_parts.append(_label_node(net, ex, ey, prot, inst.ref, pin.number))
             else:
                 if net:  # Ein-Punkt-Netz: offen lassen und melden
                     model.warnings.append(
@@ -138,7 +142,9 @@ def write_schematic(model: ExportModel, symbols_dir: Path, project_name: str) ->
         body_parts.append(_symbol_node(flag_inst, fx, flag_y, sheet_uuid, project_name,
                                        flag_pins, in_bom=False))
         px, py, prot = _pin_position(flag_pins[0], fx, flag_y)
-        label_parts.append(_label_node(net, px, py, prot, ref, flag_pins[0].number))
+        ex, ey = _stub_end(flag_pins[0], px, py)
+        label_parts.append(_wire_node(px, py, ex, ey, ref, flag_pins[0].number))
+        label_parts.append(_label_node(net, ex, ey, prot, ref, flag_pins[0].number))
 
     lib_text = "\n    ".join(sexpr.dumps(n, indent=2) for n in lib_nodes)
     parts = [
@@ -156,7 +162,7 @@ def write_schematic(model: ExportModel, symbols_dir: Path, project_name: str) ->
 
 
 def _pin_position(pin: Pin, x: float, y: float) -> tuple[float, float, int]:
-    """Pin-Endpunkt im Blatt (Symbol-Y ist gegenüber Blatt-Y gespiegelt)."""
+    """Pin-Anschlusspunkt im Blatt (Symbol-Y ist gegenüber Blatt-Y gespiegelt)."""
     px = _snap(x + pin.x)
     py = _snap(y - pin.y)
     rot = pin.rotation % 360
@@ -164,6 +170,25 @@ def _pin_position(pin: Pin, x: float, y: float) -> tuple[float, float, int]:
     if label_rot in (90, 270):
         label_rot = 360 - label_rot
     return px, py, label_rot
+
+
+def _stub_end(pin: Pin, px: float, py: float) -> tuple[float, float]:
+    """Endpunkt des Leitungsstummels: vom Anschlusspunkt weg vom Symbolkörper.
+
+    Der Pin-Winkel zeigt im Symbol vom Anschlusspunkt zum Körper; im Blatt ist
+    die Y-Achse gespiegelt, daher Richtungsvektor (-cos, +sin)."""
+    theta = math.radians(pin.rotation % 360)
+    dx = -math.cos(theta)
+    dy = math.sin(theta)
+    return _snap(px + dx * STUB_LEN), _snap(py + dy * STUB_LEN)
+
+
+def _wire_node(x1: float, y1: float, x2: float, y2: float, ref: str, pin_no: str) -> str:
+    return (
+        f"  (wire (pts (xy {x1} {y1}) (xy {x2} {y2})) "
+        f"(stroke (width 0) (type default)) "
+        f'(uuid "{_uid("wire", ref, pin_no)}"))'
+    )
 
 
 def _symbol_node(inst: SymbolInstance, x: float, y: float, sheet_uuid: str,

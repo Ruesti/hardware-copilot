@@ -70,3 +70,13 @@ def test_structure_contains_instances_and_labels(charger_model):
     assert '(text "Lademanagement"' in text
     # VBUS kommt vom (nicht vorhandenen) Connector -> PWR_FLAG erwartet
     assert "PWR_FLAG" in text
+
+
+@requires_kicad
+def test_stub_wires_present(charger_model):
+    import re
+    text = write_schematic(charger_model, KICAD_SYMBOLS, "demo")
+    wires = re.findall(r"\(wire \(pts", text)
+    labels = re.findall(r'\(label "', text)
+    assert len(wires) == len(labels), "jeder Label-Punkt hat genau einen Stummel-Draht"
+    assert len(wires) > 0
