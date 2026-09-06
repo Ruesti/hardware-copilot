@@ -33,26 +33,16 @@ INTERFACE_ROLES = [
     "EN", "BOOT",
 ]
 
-# Fallback-Footprints für Passive nach (Typ, Gehäuse)
-PACKAGE_FOOTPRINTS = {
-    ("passive_resistor", "0402"): "Resistor_SMD:R_0402_1005Metric",
-    ("passive_resistor", "0603"): "Resistor_SMD:R_0603_1608Metric",
-    ("passive_resistor", "0805"): "Resistor_SMD:R_0805_2012Metric",
-    ("passive_capacitor", "0402"): "Capacitor_SMD:C_0402_1005Metric",
-    ("passive_capacitor", "0603"): "Capacitor_SMD:C_0603_1608Metric",
-    ("passive_capacitor", "0805"): "Capacitor_SMD:C_0805_2012Metric",
-}
-
-
-def _footprint_for(part, comp) -> str:
+def _footprint_for(part, comp, mount: str = "smd") -> str:
+    from .footprints import guess_footprint
+    if mount == "tht":
+        # THT-Wunsch hat bei Passiven Vorrang vor dem SMD-Footprint der Bibliothek
+        tht = guess_footprint(comp.type, getattr(comp, "package", "") or "", mount="tht")
+        if tht and part.role_to_pin.keys() <= {"P1", "P2"}:
+            return tht
     if part.footprint:
         return part.footprint
-    package = (getattr(comp, "package", "") or "").strip()
-    mapped = PACKAGE_FOOTPRINTS.get(((comp.type or ""), package))
-    if mapped:
-        return mapped
-    # rohe Gehäusenamen ("0402", "SOT-23") sind keine gültigen KiCad-Footprints
-    return package if ":" in package else ""
+    return guess_footprint(comp.type, getattr(comp, "package", "") or "", mount=mount)
 
 
 @dataclass
@@ -95,7 +85,8 @@ def _detect_usb_signal(label: str) -> bool:
     return "USB" in text or ("D+" in text and "D-" in text)
 
 
-def build_export_model(blocks, connections, components, library: Library) -> ExportModel:
+def build_export_model(blocks, connections, components, library: Library,
+                       mount: str = "smd") -> ExportModel:
     model = ExportModel()
     block_by_id = {b.id: b for b in blocks}
 
@@ -179,7 +170,7 @@ def build_export_model(blocks, connections, components, library: Library) -> Exp
         model.instances.append(SymbolInstance(
             ref=ref, lib_id=part.lib_id,
             value=comp.value or comp.name or "",
-            footprint=_footprint_for(part, comp),
+            footprint=_footprint_for(part, comp, mount),
             block_name=block_name, pin_nets=pin_nets,
             status="mapped" if not library.is_fallback(comp.mpn) else "fallback",
             name=comp.name or "", component_id=getattr(comp, "id", ""),

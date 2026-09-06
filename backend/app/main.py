@@ -744,11 +744,13 @@ def refresh_design(
 # ── KiCad-Export ──────────────────────────────────────────────────────────────
 
 @app.get("/projects/{project_id}/export/kicad")
-def export_kicad(project_id: str) -> Response:
+def export_kicad(project_id: str, mount: str = "smd") -> Response:
     _require_project(project_id)
     from app.kicad.export import run_export
     try:
-        result = run_export(project_id)
+        result = run_export(project_id, mount=mount)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     return Response(
@@ -759,11 +761,13 @@ def export_kicad(project_id: str) -> Response:
 
 
 @app.get("/projects/{project_id}/export/kicad/report")
-def export_kicad_report(project_id: str) -> dict[str, Any]:
+def export_kicad_report(project_id: str, mount: str = "smd") -> dict[str, Any]:
     _require_project(project_id)
     from app.kicad.export import run_export
     try:
-        return run_export(project_id).report
+        return run_export(project_id, mount=mount).report
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 

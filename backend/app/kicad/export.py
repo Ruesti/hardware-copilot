@@ -19,7 +19,8 @@ class ExportResult:
     report: dict
 
 
-def run_export(project_id: str, symbols_dir: Path = DEFAULT_SYMBOLS_DIR) -> ExportResult:
+def run_export(project_id: str, symbols_dir: Path = DEFAULT_SYMBOLS_DIR,
+               mount: str = "smd") -> ExportResult:
     if not symbols_dir.exists():
         raise FileNotFoundError(
             f"KiCad-Symbolbibliothek nicht gefunden ({symbols_dir}). "
@@ -29,13 +30,15 @@ def run_export(project_id: str, symbols_dir: Path = DEFAULT_SYMBOLS_DIR) -> Expo
     components = list_components(project_id)
     library = load_library()
 
-    model = build_export_model(blocks, connections, components, library)
+    if mount not in ("smd", "tht"):
+        raise ValueError(f"mount muss 'smd' oder 'tht' sein, nicht {mount!r}")
+    model = build_export_model(blocks, connections, components, library, mount=mount)
     schematic = write_schematic(model, symbols_dir, project_id)
 
     report = {
         "instances": [
             {"ref": i.ref, "name": i.name, "value": i.value,
-             "block": i.block_name, "status": i.status}
+             "block": i.block_name, "status": i.status, "footprint": i.footprint}
             for i in model.instances
         ],
         "unmapped": model.unmapped,
@@ -45,6 +48,7 @@ def run_export(project_id: str, symbols_dir: Path = DEFAULT_SYMBOLS_DIR) -> Expo
             "fallback": sum(1 for i in model.instances if i.status == "fallback"),
             "unverified": sum(1 for i in model.instances if i.status == "unverified"),
             "unmapped": len(model.unmapped),
+            "no_footprint": sum(1 for i in model.instances if not i.footprint),
         },
     }
     return ExportResult(schematic_text=schematic, report=report)

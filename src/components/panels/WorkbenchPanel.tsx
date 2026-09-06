@@ -7,7 +7,7 @@ import { refreshDesign } from "../../api/components";
 import { fetchDiagram } from "../../api/diagram";
 import { fetchComponents } from "../../api/components";
 import { fetchUsage, type UsageSummary } from "../../api/usage";
-import { fetchExportReport, kicadDownloadUrl, type ExportReport } from "../../api/export";
+import { fetchExportReport, kicadDownloadUrl, type ExportReport, type MountStyle } from "../../api/export";
 import type {
   BlockConnection,
   ChatMessage,
@@ -78,6 +78,23 @@ export function WorkbenchPanel({
   const [exportReport, setExportReport] = useState<ExportReport | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportAsk, setExportAsk] = useState(false);
+  const [exportMount, setExportMount] = useState<MountStyle>("smd");
+  const closeExport = () => {
+    setExportReport(null);
+    setExportError(null);
+    setExportAsk(false);
+  };
+  const runExport = (mount: MountStyle) => {
+    setExportMount(mount);
+    setExportAsk(false);
+    setExportLoading(true);
+    setExportError(null);
+    fetchExportReport(projectId, mount)
+      .then(setExportReport)
+      .catch((err) => setExportError(String(err?.message ?? err)))
+      .finally(() => setExportLoading(false));
+  };
   const [mode, setMode] = useState<SchematicMode>(loadInitialMode);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [colLeft, setColLeft] = useState<number>(() => loadColWidth(COL_LEFT_KEY, COL_LEFT_DEFAULT));
@@ -257,14 +274,7 @@ export function WorkbenchPanel({
 
         {/* KiCad-Export */}
         <button
-          onClick={() => {
-            setExportLoading(true);
-            setExportError(null);
-            fetchExportReport(projectId)
-              .then(setExportReport)
-              .catch((err) => setExportError(String(err?.message ?? err)))
-              .finally(() => setExportLoading(false));
-          }}
+          onClick={() => setExportAsk(true)}
           disabled={exportLoading}
           style={{
             background: "#0c0c0f",
@@ -446,9 +456,9 @@ export function WorkbenchPanel({
         />
       )}
 
-      {(exportReport || exportError) && (
+      {(exportAsk || exportReport || exportError) && (
         <div
-          onClick={() => { setExportReport(null); setExportError(null); }}
+          onClick={closeExport}
           style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60,
@@ -463,7 +473,35 @@ export function WorkbenchPanel({
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: 12 }}>KiCad-Export</div>
-            {exportError ? (
+            {exportAsk ? (
+              <>
+                <div style={{ marginBottom: 12, color: "#a1a1aa", fontSize: 12 }}>
+                  Wie soll bestückt werden? Das bestimmt die automatische
+                  Footprint-Zuordnung der Bauteile.
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => runExport("smd")}
+                    style={{
+                      background: "#16a34a", color: "#fff", border: "none",
+                      borderRadius: 8, padding: "8px 16px", fontSize: 12, cursor: "pointer",
+                    }}
+                  >
+                    SMD (Oberflächenmontage)
+                  </button>
+                  <button
+                    onClick={() => runExport("tht")}
+                    style={{
+                      background: "#0c0c0f", color: "#e4e4e7",
+                      border: "1px solid #27272a",
+                      borderRadius: 8, padding: "8px 16px", fontSize: 12, cursor: "pointer",
+                    }}
+                  >
+                    THT (bedrahtet / Handlöten)
+                  </button>
+                </div>
+              </>
+            ) : exportError ? (
               <div style={{ color: "#f87171" }}>{exportError}</div>
             ) : exportReport ? (
               <>
@@ -472,6 +510,7 @@ export function WorkbenchPanel({
                   <span style={{ color: "#a1a1aa" }}>{exportReport.counts.fallback} Standard</span>
                   <span style={{ color: "#fbbf24" }}>{exportReport.counts.unverified} unbestätigt</span>
                   <span style={{ color: "#f87171" }}>{exportReport.counts.unmapped} ohne Symbol</span>
+                  <span style={{ color: "#a1a1aa" }}>{exportReport.counts.no_footprint} ohne Footprint</span>
                 </div>
                 {exportReport.unmapped.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
@@ -499,7 +538,7 @@ export function WorkbenchPanel({
                 )}
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                   <a
-                    href={kicadDownloadUrl(projectId)}
+                    href={kicadDownloadUrl(projectId, exportMount)}
                     download
                     style={{
                       background: "#16a34a", color: "#fff", borderRadius: 8,
@@ -509,7 +548,7 @@ export function WorkbenchPanel({
                     .kicad_sch herunterladen
                   </a>
                   <button
-                    onClick={() => { setExportReport(null); setExportError(null); }}
+                    onClick={closeExport}
                     style={{
                       background: "transparent", border: "1px solid #27272a",
                       borderRadius: 8, color: "#a1a1aa", padding: "6px 14px",
