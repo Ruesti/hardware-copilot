@@ -138,9 +138,13 @@ This phase is completed.
 
 ## Verification Gate — Can the app produce a working schematic?
 
-**Status:** open
+**Status:** passed (2026-09-06)
 
-Before building the KiCad export, verify the core promise end-to-end: chat in a real device brief, let the app draft the circuit, and assess whether the resulting blocks, connections, component choices, and ASCII schematics are electrically sound. Findings feed directly into the Phase 5 scope.
+End-to-end test with a real device brief (ESP32-S3 temperature logger): 7 blocks,
+28 parts with real MPNs, 16 connections, ASCII schematics and a useful AI
+validation (9 findings) — topology and part choices were electrically sound.
+Key finding: the LLM invents pin numbers (MCP73831 pins 3/4/5 swapped vs. the
+datasheet), which drove the Phase 5 architecture (curated pin library).
 
 ---
 
@@ -169,11 +173,3 @@ Remaining for 5.2: datasheet-based pin-map extraction with user validation.
 
 ### Goal
 Redesign the workbench UI once the core pipeline (through KiCad export) is functional.
-- KiCad export
-- advanced AI implementation flows
-- version history systems
-
-### Detailed phase definition
-See:
-
-- `docs/phases/phase-4-persistent-projects-with-sqlite.md`
