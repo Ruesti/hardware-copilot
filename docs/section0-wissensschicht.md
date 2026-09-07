@@ -118,13 +118,32 @@ Das ist der Kern. Hier keine schnellen Antworten.
 
 **D1.** Was ist ein Block — ein Schaltungsteil, ein Netzabschnitt, eine Kombination aus Bauteilen und Werten? Woran wird er wiedererkannt?
 
+> **Antwort:** Eine konkrete Bauteil-Kombination mit Werten — Kernbauteil plus umgebende Bauteile (z. B. Regler-IC mit Ein-/Ausgangskondensatoren). Wiedererkannt wird er über Kernbauteil und Topologie. Eng gefasst, dafür präzise prüfbar.
+
 **D2.** Welche Felder werden beim Verifizieren erfasst? (Kandidaten: was gebaut, was gemessen, was nicht funktioniert hat, Fallback, Datum, Projektbezug)
+
+> **Antwort:** Die sechs Kandidaten plus drei Ergänzungen:
+> - **Gebaut** — was aufgebaut wurde
+> - **Gemessen** — die Messwerte
+> - **Gescheitert** — was nicht funktioniert hat
+> - **Fallback** — was stattdessen trug
+> - **Datum**
+> - **Projektbezug**
+> - **Messbedingungen** — womit und wie gemessen (Multimeter vs. Oszilloskop, Last, Temperatur); bestimmt, wie belastbar *verifiziert* ist
+> - **Getestete Grenzen** — bis wohin vermessen (max. Last, Frequenz, Dauer); Gegenstück zum Ausnahmen-Feld der Regeln (B1), Grundlage für D4
+> - **Revision/Bestückung** — Platinen-Revision und Bestückungsvariante
 
 **D3.** Wie hängt ein Block am KiCad-Projekt? Pfad, UUID, kopierter Ausschnitt?
 
+> **Antwort:** Kopierter Ausschnitt. Der Block speichert eine eigene Kopie des vermessenen Teilschaltbilds (Auszug/Netzliste) plus lose Referenz aufs Projekt. Begründung: Verifiziert ist ein *Stand*, keine Datei — das Projekt entwickelt sich nach der Messung weiter, ein Pfad zeigte irgendwann auf etwas anderes als das Vermessene.
+
 **D4.** Ein Block ist in *deinem* Aufbau verifiziert. Was macht das System, wenn der nächste Fall ähnlich, aber nicht gleich ist?
 
+> **Antwort:** Immer Vermutung plus Differenzliste. Der Block wird als Referenz gezeigt („in Aufbau X verifiziert"), aber der Hinweis für den neuen Fall trägt die Stufe *Vermutung*, und die Abweichungen werden explizit aufgezählt. Konsistent mit C3: Übertragung ist Herleitung.
+
 **D5.** Wird das Schema jetzt gebaut, obwohl die erste Platine erst in drei Monaten kommt? Falls ja: wie wird verhindert, dass es an Annahmen statt an echten Fällen entworfen wird?
+
+> **Antwort:** Ja, jetzt — parallel zum Regel-Schema in Phase 1. Das Risiko, an Annahmen statt an echten Fällen zu entwerfen, wird nicht verhindert, sondern bewusst getragen: Das Schema gilt bis zur ersten Platine als **vorläufig**, eine Revision nach den ersten echten Verified Blocks (Split-Flap-Controller) ist fest eingeplant und kein Scheitern.
 
 ---
 
