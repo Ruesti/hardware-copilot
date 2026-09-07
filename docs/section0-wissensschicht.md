@@ -87,15 +87,30 @@ Das ist der Kern. Hier keine schnellen Antworten.
 
 **C1.** Die drei Stufen — belegt, verifiziert, Vermutung. Sind das die richtigen drei? Fehlt eine (z. B. *widerlegt*)?
 
+> **Antwort:** Drei reichen. Jede weitere Stufe verwässert. Widerlegtes wird keine eigene Stufe — es fliegt aus der Regelbasis oder landet im Ausnahmen-Feld der Regel (B1), wenn das Scheitern selbst informativ ist.
+
 **C2.** Wie kommt ein Hinweis zu seiner Stufe? Trägt der Server sie zu, oder klassifiziert das Modell sich selbst? Bei Selbstklassifikation: was hindert es daran, sich hochzustufen?
+
+> **Antwort:** Das Modell schlägt vor, der Server prüft. Der Server validiert die vorgeschlagene Stufe gegen die Regelbasis und darf dabei nur **abstufen, nie hochstufen**. Die Obergrenze eines Hinweises ist die in den Daten gespeicherte Stufe der zitierten Regel (B1) — Hochstufen ist damit strukturell begrenzt, nicht bloß verboten.
 
 **C3.** Ein Hinweis kombiniert eine belegte Regel mit einer Herleitung auf den konkreten Fall. Welche Stufe bekommt er? (Diese Frage entscheidet, ob das System ehrlich bleibt.)
 
+> **Antwort:** Zweiteilige Ausgabe. Der Hinweis wird aufgespalten: „Regel (belegt): …" und „Anwendung auf deinen Fall (Vermutung): …". Keine Mischstufe — die Herkunft jeder Teilaussage bleibt einzeln sichtbar. Zusammen mit C2 heißt das: Anwendungs-Teile können strukturell nie über *Vermutung* hinaus; nur der Regel-Teil trägt die Stufe aus den Daten.
+
 **C4.** Wie sieht *Vermutung* in der Ausgabe aus, sodass sie beim Überfliegen nicht wie die anderen wirkt? Formulierung allein reicht nicht.
+
+> **Antwort:** Pflicht-Marker je Hinweis. Jeder Hinweis trägt eine Stufen-Zeile; Vermutungen zusätzlich ein Präfix (⚠ VERMUTUNG) und explizit „Quelle: keine". Die Reihenfolge der Hinweise bleibt thematisch, die Kennzeichnung hängt am Hinweis selbst.
 
 **C5.** Kann ein Hinweis die Stufe wechseln? Unter welcher Bedingung wird aus Vermutung *verifiziert* — und wer löst das aus?
 
+> **Antwort:** Ja, aber immer durch den Menschen und immer an der Regel (die Stufe ist ein Feld der Regel, B1):
+> - Vermutung → **verifiziert:** ein real vermessener Aufbau wird als Verified Block eingetragen (D2).
+> - Vermutung → **belegt:** eine Primärquelle wird nachträglich gefunden und an der Regel eingetragen (B3-Maßstab).
+> Der Server stuft nie selbst um.
+
 **C6.** Was gibt der Server aus, wenn er zu einer Frage nichts Belegtes hat? Schweigen, Vermutung mit Warnung, oder Rückfrage?
+
+> **Antwort:** Lücke benennen und protokollieren. Ausgabe: „Keine belegte Regel zu X vorhanden." Zusätzlich landet die unbeantwortete Frage in einer Lücken-Liste — jeder Eintrag ist Kandidat für eine neue Regel mit Quelle. Das ist dieselbe Mechanik, mit der Phase 3 Lücken in Regeln verwandelt.
 
 ---
 
