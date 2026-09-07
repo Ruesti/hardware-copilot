@@ -43,15 +43,41 @@ Abschluss von §0 ist erreicht, wenn Block A–F beantwortet sind und das Datens
 
 **B1.** Welche Felder hat eine Regel? Vorschlag als Ausgangspunkt: Aussage, Begründung, Quelle, Geltungsbereich, Stärke. Was fehlt, was ist überflüssig?
 
+> **Antwort:** Der Basisvorschlag plus drei Ergänzungen. Felder einer Regel:
+> - **Aussage** — die Regel selbst
+> - **Begründung** — warum sie gilt
+> - **Quelle** — mit präziser Fundstelle (siehe B3)
+> - **Geltungsbereich** — strukturiert (siehe B2)
+> - **Stärke** — Verbindlichkeit: muss / sollte / kann
+> - **ID** — eindeutig, referenzierbar aus Hinweisen und Verified Blocks
+> - **Datum** — Eintrag und letzte Prüfung; Quellen altern, Datenblatt-Revisionen ändern sich
+> - **Stufe** — belegt / verifiziert / Vermutung, direkt an der Regel gespeichert
+> - **Ausnahmen/Grenzen** — wann die Regel *nicht* gilt; verhindert Übergeneralisierung durch das Modell
+
 **B2.** Wie wird *Geltungsbereich* ausgedrückt, sodass er maschinell prüfbar ist? („gilt für Schaltregler über 500 kHz" ist Prosa — was ist die strukturierte Form?)
+
+> **Antwort:** Bedingungsfelder — definierte Achsen als strukturierte Felder: Bauteilklasse, Parameterbereich, Netztyp (z. B. `klasse=schaltregler`, `f_schalt>=500kHz`). Prüfbar per Feldvergleich. Das Achsen-Schema wird nicht vorab entworfen, sondern wächst mit den zwanzig Testregeln aus Phase 1.
 
 **B3.** Was zählt als Quelle? Datenblatt mit Seitenzahl, Herstellerapplikationsschrift, IPC-Norm, Video mit Zeitmarke — und was davon reicht für die Stufe *belegt*?
 
+> **Antwort:** Strenge Linie: *belegt* erfordert eine Primärquelle — Datenblatt mit Seitenzahl, Hersteller-Applikationsschrift oder Norm (IPC/JEDEC). Videos, Blogs und Bücher zählen als Quelle, tragen aber höchstens die Stufe *Vermutung* — auch dann mit präziser Fundstelle (Zeitmarke, Seite).
+
 **B4.** Woher kommen die ersten Regeln konkret? Welche fünf Bereiche zuerst, und aus welchen Dokumenten?
+
+> **Antwort:** Fünf Bereiche:
+> 1. **Entkopplung & Masseführung** — Abblockkondensatoren, Rückstromwege, Ground-Konzept. Quellen: TI/Murata-Applikationsschriften, Espressif Hardware Design Guidelines.
+> 2. **Schaltregler-Layout** — Hot Loop, Feedback-Pfad, Induktivität-Platzierung. Quellen: TI/Analog-Devices-Applikationsschriften zum jeweiligen Regler-IC.
+> 3. **ESP32-spezifisch** — Antennen-Keepout, Strom-Peaks beim WLAN-Senden, Strapping-Pins. Quelle: Espressif Hardware Design Guidelines.
+> 4. **Motortreiber & induktive Lasten** — Freilaufdioden, Treiber-Layout, Stromspitzen (Split-Flap-Controller). Quellen: Treiber-Datenblätter (z. B. ULN2003, DRV8825).
+> 5. **Verpolschutz & Versorgung** — Verpolschutz, Inrush, Sicherungen, Stecker-Pinning. Quellen: Hersteller-Applikationsschriften (TI, ROHM).
 
 **B5.** Wie werden Regeln eingetragen? Von Hand in Markdown/TOML, über ein Tool des Servers, oder halbautomatisch aus Dokumenten mit anschließender Freigabe?
 
+> **Antwort:** Von Hand in TOML/Markdown, als Dateien im Git — diffbar und reviewbar. Phase 1 läuft ohnehin ohne Server. Ein Eintrags-Tool kann später kommen, wenn sich das Schema bewährt hat.
+
 **B6.** Was passiert bei widersprüchlichen Regeln? Wer gewinnt, und wird der Widerspruch sichtbar gemacht?
+
+> **Antwort:** Niemand gewinnt. Der Server zeigt beide Regeln samt Quellen und markiert den Widerspruch ausdrücklich. Keine automatische Auflösung — konsequenteste Fortsetzung von A1: Ehrlichkeit vor Bequemlichkeit.
 
 ---
 
