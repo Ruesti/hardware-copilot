@@ -97,3 +97,35 @@ class BestandsDienst:
             "klasse": z["klasse"],
             "fach": f"{z['regal']}/{z['position']}" if z["regal"] else None,
         }) for z in zeilen)
+
+    def menge_aendern(self, teil_id: int, delta: int) -> str:
+        teil = self._teil(teil_id)
+        neu = teil["menge"] + delta
+        if neu < 0:
+            raise BestandsFehler(
+                f"[T-{teil_id}] Menge würde unter 0 fallen (Bestand: {teil['menge']}).")
+        self._conn.execute("UPDATE teile SET menge = ? WHERE id = ?", (neu, teil_id))
+        self._conn.commit()
+        return f"[T-{teil_id}] Menge jetzt {neu}."
+
+    def alternative_vermerken(self, teil_id: int, bezeichnung: str,
+                              hersteller_nr: str = "", hinweis: str = "") -> str:
+        self._teil(teil_id)  # existiert?
+        self._conn.execute(
+            "INSERT INTO alternativen (teil_id, bezeichnung, hersteller_nr,"
+            " hinweis, datum) VALUES (?, ?, ?, ?, ?)",
+            (teil_id, bezeichnung, hersteller_nr, hinweis, self._heute()))
+        self._conn.commit()
+        return f"[T-{teil_id}] Alternative {bezeichnung} vermerkt."
+
+    def preis_cachen(self, teil_id: int, quelle: str, preis_eur: float,
+                     url: str = "") -> str:
+        if preis_eur <= 0:
+            raise BestandsFehler(f"Preis muss > 0 sein, war {preis_eur}.")
+        self._teil(teil_id)  # existiert?
+        datum = self._heute()
+        self._conn.execute(
+            "INSERT INTO preis_cache (teil_id, quelle, preis_eur, url, datum)"
+            " VALUES (?, ?, ?, ?, ?)", (teil_id, quelle, preis_eur, url, datum))
+        self._conn.commit()
+        return f"[T-{teil_id}] Preis {preis_eur} € bei {quelle} — Stand vom {datum}."
