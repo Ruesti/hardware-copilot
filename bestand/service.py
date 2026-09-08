@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import db
 from . import format as fmt
+from . import regal
 
 
 class BestandsFehler(Exception):
@@ -23,7 +24,7 @@ class BestandsDienst:
         self._conn = db.verbinde(db_pfad)
         self._regal_url = regal_url
         self._heute = heute or (lambda: date.today().isoformat())
-        self._sender = sender  # ab Task 5: bestand.regal.sende
+        self._sender = sender or regal.sende
 
     # -- intern ---------------------------------------------------------------
 
@@ -129,3 +130,24 @@ class BestandsDienst:
             " VALUES (?, ?, ?, ?, ?)", (teil_id, quelle, preis_eur, url, datum))
         self._conn.commit()
         return f"[T-{teil_id}] Preis {preis_eur} € bei {quelle} — Stand vom {datum}."
+
+    def fach_leuchten(self, teil_id: int, farbe: str = "gruen",
+                      dauer_s: int = 30) -> str:
+        teil = self._teil(teil_id)
+        if teil["fach"] is None:
+            raise BestandsFehler(f"[T-{teil_id}] hat kein Fach zugewiesen.")
+        if not self._regal_url:
+            return (f"Kein Regal konfiguriert (BESTAND_REGAL_URL) — "
+                    f"[T-{teil_id}] liegt in Fach {teil['fach']}.")
+        fach = self._conn.execute("SELECT * FROM faecher WHERE id = ?",
+                                  (teil["fach_id"],)).fetchone()
+        befehl = {"led": fach["led_nummer"], "regal": fach["regal"],
+                  "position": fach["position"], "farbe": farbe, "dauer_s": dauer_s}
+        try:
+            self._sender(self._regal_url, befehl)
+        except OSError as e:
+            raise BestandsFehler(
+                f"Regal nicht erreichbar ({e}) — [T-{teil_id}] liegt in "
+                f"Fach {teil['fach']}.") from e
+        return (f"Fach {teil['fach']} leuchtet {farbe} ({dauer_s} s) — "
+                f"[T-{teil_id}] {teil['bezeichnung']}.")
