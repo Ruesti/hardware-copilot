@@ -30,6 +30,9 @@ def query_rules(klassen: list[str], achsen: dict | None = None,
     Gültige Werte stehen im Achsenkatalog des Wissens-Repos (SCHEMA.md).
     achsen: weitere Fall-Eigenschaften, z. B. {"last_typ": "induktiv"}. Bedingungen,
     die der Fall nicht angibt, werden als unbestätigt gemeldet.
+    WICHTIG: Spannung und Strom des Falls immer mit angeben, wenn bekannt —
+    {"spannung_v": 230, "strom_a": 2.0} — sie steuern die Heikel-Erkennung
+    (§0 Block E): heikle Bereiche liefern eine Frage statt einer Anweisung.
     frage: Freitext dessen, was beantwortet werden soll — wird bei leerem Ergebnis
     ins Lücken-Protokoll übernommen (C6).
     Details zu einer Regel liefert get_rule; Stufen sind Daten des Servers und
