@@ -182,13 +182,43 @@ Das ist der Kern. Hier keine schnellen Antworten.
 
 **F1.** Welche MCP-Tools bietet der Server? Erste Liste mit Zweck, nicht mit Signatur.
 
+> **Antwort:** Vier Gruppen:
+> 1. **Abfrage-Kern** — Regeln zu einem beschriebenen Fall abrufen (Match über die Bedingungsfelder, B2); eine Quelle im Volltext nachschlagen. Das Minimum für Phase 2.
+> 2. **Klassifikations-Prüfung** — das Modell reicht seinen Hinweis-Entwurf ein, der Server prüft die Stufen und darf nur abstufen (C2). Macht die Zweiteilung aus C3 erzwingbar statt vereinbart.
+> 3. **Lücken-Werkzeuge** — Lücke protokollieren, Lückenliste abrufen (C6); füttert die Phase-3-Mechanik.
+> 4. **Verified-Block-Werkzeuge** — Block erfassen, Blöcke durchsuchen (D2); gebaut in Phase 4.
+
 **F2.** Wird der Server gefragt, oder meldet er sich? Rein auf Abruf durch das Modell, oder gibt es eine Prüfung über einen ganzen Schaltplan?
+
+> **Antwort:** Rein auf Abruf. Das Modell fragt, der Server antwortet — mehr nicht. Passt zu Phase 2 („nur lesend") und hält den Server aus Abläufen heraus, die er nicht versteht. Eine Ganzplan-Prüfung oder automatische Auslösung ist damit nicht beschlossen; falls später gewünscht, ist es eine neue Entscheidung nach Phase 4.
 
 **F3.** In welchem Format kommt ein Hinweis zurück, sodass Stufe, Begründung und Quelle in Claude Code lesbar bleiben?
 
+> **Antwort:** Markdown mit eingebettetem JSON. Oben der lesbare Block mit festen Zeilen — das Modell soll ihn unverändert durchreichen statt umformulieren —, darunter die Rohdaten als JSON für spätere Werkzeuge. Redundant, aber robust. Beispiel:
+>
+> ```markdown
+> ### Hinweis — Eingangskondensator
+> **Stufe: BELEGT**
+> Regel R-023: Eingangskondensator < 5 mm an VIN.
+> Begründung: Hot-Loop-Fläche bestimmt die Abstrahlung.
+> Quelle: TI SLVA773, S. 4 | Geltung: klasse=schaltregler
+>
+> **Anwendung auf deinen Fall — ⚠ VERMUTUNG**
+> Beim TPS5430 heißt das: C3 direkt an Pin 7.
+> Quelle: keine (Herleitung)
+> ```
+> ```json
+> {"regel": {"id": "R-023", "stufe": "belegt", "quelle": "TI SLVA773 S.4"},
+>  "anwendung": {"stufe": "vermutung", "quelle": null}}
+> ```
+
 **F4.** Wie wird der Kontextverbrauch begrenzt? (Konnect lädt Toolsets auf Abruf — was ist hier das Äquivalent?)
 
+> **Antwort:** Zweistufige Detailtiefe. Abfragen liefern zuerst die Kurzform (ID, Aussage, Stufe); Begründung, Quelle und Geltung im Volltext kommen nur per Nachfass-Tool mit Regel-ID — das Äquivalent zu Konnects Abruf-Prinzip.
+
 **F5.** Wo liegen Regelbasis und Blöcke? Lokal, versioniert im Git, pro Projekt oder global?
+
+> **Antwort:** Global, in einem eigenen Wissens-Repo im Git. Regeln gelten projektübergreifend; Verified Blocks liegen ebenfalls dort und tragen ihren Projektbezug als Feld (D2). Die Historie jeder Regeländerung — einschließlich Stufenwechsel (C5) — bleibt nachvollziehbar.
 
 ---
 
