@@ -30,6 +30,9 @@ def query_rules(klassen: list[str], achsen: dict | None = None,
     Gültige Werte stehen im Achsenkatalog des Wissens-Repos (SCHEMA.md).
     achsen: weitere Fall-Eigenschaften, z. B. {"last_typ": "induktiv"}. Bedingungen,
     die der Fall nicht angibt, werden als unbestätigt gemeldet.
+    WICHTIG: Spannung und Strom des Falls immer mit angeben, wenn bekannt —
+    {"spannung_v": 230, "strom_a": 2.0} — sie steuern die Heikel-Erkennung
+    (§0 Block E): heikle Bereiche liefern eine Frage statt einer Anweisung.
     frage: Freitext dessen, was beantwortet werden soll — wird bei leerem Ergebnis
     ins Lücken-Protokoll übernommen (C6).
     Details zu einer Regel liefert get_rule; Stufen sind Daten des Servers und
@@ -74,6 +77,45 @@ def list_gaps() -> str:
         return "Lücken-Protokoll ist leer."
     return "\n".join(f"- {e['datum']}: {e['frage']} ({e['grund']}) — {e['status']}"
                      for e in eintraege)
+
+
+@mcp.tool()
+def record_block(titel: str, kernbauteil: str, topologie: str, gebaut: str,
+                 gemessen: str, messbedingungen: str, grenzen: str, projekt: str,
+                 ausschnitt: str, gescheitert: str = "", fallback: str = "",
+                 revision: str = "", regeln: list[str] | None = None) -> str:
+    """Einen real aufgebauten und vermessenen Schaltungsblock als Verified Block
+    erfassen (§0 Phase 4). NUR nach echtem Aufbau mit echten Messwerten aufrufen —
+    nie für geplante oder simulierte Schaltungen.
+
+    Pflicht: titel, kernbauteil, topologie, gebaut (Bauteile mit Werten), gemessen
+    (Zahlen!), messbedingungen (womit/wie gemessen), grenzen (bis wohin getestet),
+    projekt, ausschnitt (Teilschaltbild/Netzliste als Text — wird eingefroren, D3).
+    Optional: gescheitert, fallback, revision, regeln (Regel-IDs, die dieser
+    Aufbau stützt — Hochstufen auf verifiziert macht der Mensch im Wissens-Repo, C5)."""
+    return _dienst().erfasse_block(
+        titel=titel, kernbauteil=kernbauteil, topologie=topologie, gebaut=gebaut,
+        gemessen=gemessen, gescheitert=gescheitert, fallback=fallback,
+        projekt=projekt, messbedingungen=messbedingungen, grenzen=grenzen,
+        revision=revision, ausschnitt=ausschnitt, regeln=regeln)
+
+
+@mcp.tool()
+def search_blocks(suchbegriff: str) -> str:
+    """Verified Blocks durchsuchen (Kernbauteil, Titel, Topologie). Liefert real
+    vermessene Aufbauten als Referenz. ⚠ D4: verifiziert gilt exakt für den
+    erfassten Aufbau innerhalb seiner getesteten Grenzen — die Übertragung auf
+    einen ähnlichen Fall ist eine Vermutung und braucht eine explizite
+    Differenzliste der Abweichungen."""
+    return _dienst().bloecke_suchen(suchbegriff)
+
+
+@mcp.tool()
+def get_block(block_id: str) -> str:
+    """Volltext eines Verified Blocks: was gebaut, was gemessen (mit Bedingungen
+    und Grenzen), was gescheitert, Fallback, eingefrorener Ausschnitt, verknüpfte
+    Regeln — inklusive D4-Hinweis zur Übertragbarkeit."""
+    return _dienst().block(block_id)
 
 
 if __name__ == "__main__":

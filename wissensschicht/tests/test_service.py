@@ -33,20 +33,21 @@ def test_query_vermutung_traegt_marker(repo):
 def test_query_ohne_treffer_benennt_luecke_und_protokolliert(repo):
     dienst = WissensDienst(repo)
 
-    antwort = dienst.query(klassen=["ldo"], frage="Dropout-Reserve für LDO?")
+    antwort = dienst.query(klassen=["motortreiber_stepper"], achsen={"last_typ": "ohmsch"},
+                           frage="Bulk-Kondensator bei ohmscher Last?")
 
     assert "Keine belegte Regel" in antwort
     eintraege = dienst.luecken()
     assert len(eintraege) == 1
-    assert eintraege[0]["frage"] == "Dropout-Reserve für LDO?"
+    assert eintraege[0]["frage"] == "Bulk-Kondensator bei ohmscher Last?"
 
 
-def test_query_ohne_treffer_ohne_frage_protokolliert_nicht(repo):
+def test_query_mit_unbekannter_klasse_meldet_katalog_statt_luecke(repo):
     dienst = WissensDienst(repo)
 
     antwort = dienst.query(klassen=["ldo"])
 
-    assert "Keine belegte Regel" in antwort
+    assert "Unbekannte Klasse" in antwort
     assert dienst.luecken() == []
 
 
