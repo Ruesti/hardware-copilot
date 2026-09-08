@@ -48,3 +48,9 @@ src-tauri/target/
 Thumbs.db
 
 backend/data/hardware_copilot.db
+
+# Python (Wissensschicht)
+.venv-wissen/
+__pycache__/
+*.pyc
+.pytest_cache/
