@@ -30,7 +30,7 @@ class BestandsDienst:
     def _fach_id(self, fach: str) -> int:
         if "/" not in fach:
             raise BestandsFehler(
-                f'Fach "{fach}" nicht verstanden - Format ist Regal/Position, z. B. A/3.')
+                f'Fach „{fach}" nicht verstanden — Format ist Regal/Position, z. B. A/3.')
         regal, position = fach.split("/", 1)
         self._conn.execute(
             "INSERT OR IGNORE INTO faecher (regal, position) VALUES (?, ?)",
@@ -90,8 +90,8 @@ class BestandsDienst:
             parameter.append(klasse)
         zeilen = self._conn.execute(sql + " ORDER BY t.id", parameter).fetchall()
         if not zeilen:
-            return (f'Kein Teil gefunden für "{suchbegriff}". '
-                    'Neu erfassen: teil_anlegen.')
+            return (f'Kein Teil gefunden für „{suchbegriff}". '
+                    "Neu erfassen: teil_anlegen.")
         return "\n".join(fmt.kurzzeile({
             "id": z["id"], "bezeichnung": z["bezeichnung"], "menge": z["menge"],
             "klasse": z["klasse"],
