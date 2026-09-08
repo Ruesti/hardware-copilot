@@ -745,7 +745,7 @@ An `BestandsDienst` anfügen — und in `__init__` die Zeile `self._sender = sen
 - [ ] **Step 4: Alle Tests laufen lassen — müssen bestehen**
 
 Run: `~/projects/hardware-copilot/.venv-wissen/bin/python -m pytest bestand/tests/ -v`
-Expected: 23 passed (4+5+8+6 aus Tasks 1–4 plus 4 neue; `sender`-Default ändert kein bestehendes Verhalten)
+Expected: 27 passed (4+5+8+6 = 23 aus Tasks 1–4 plus 4 neue; `sender`-Default ändert kein bestehendes Verhalten)
 
 - [ ] **Step 5: Commit**
 
@@ -966,7 +966,7 @@ in Etappe E3; App-Panels in E2.
 - [ ] **Step 4: Alle Tests laufen lassen — müssen bestehen**
 
 Run: `~/projects/hardware-copilot/.venv-wissen/bin/python -m pytest bestand/tests/ wissensschicht/tests/ -v`
-Expected: 26 bestand-Tests passed + alle 51 wissensschicht-Tests weiterhin passed
+Expected: 30 bestand-Tests passed + alle 51 wissensschicht-Tests weiterhin passed
 
 - [ ] **Step 5: Commit**
 
