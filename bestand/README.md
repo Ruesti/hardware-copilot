@@ -39,3 +39,21 @@ python -m pytest bestand/tests/
 
 Die Zuordnung Fach→LED (`faecher.led_nummer`) und die Regal-Firmware folgen
 in Etappe E3; App-Panels in E2.
+
+## Gate-Lauf E1 (2026-09-08)
+
+Ende-zu-Ende über echte headless Claude-Code-Sessions gegen den eingebundenen
+Server (temporäre Registrierung `bestand-gate`, eigene Demo-DB): 5 Demo-Teile
+angelegt (2 × 10 µF verwechselbar, TPS54331, ESP32-S3, 100 nF). Befund:
+
+- „Welchen 10-µF-Kondensator habe ich?" → beide Treffer mit korrekten Mengen
+  (80/25) und Fächern (A/1, A/2), 100 nF korrekt nicht dabei. ✓
+- Verbrauch: `menge_aendern(T-5, −3)` → „Menge jetzt 247". ✓
+- `preis_cachen` → Antwort und Volltext tragen „Stand vom 2026-09-08". ✓
+- `fach_leuchten(T-1)` ohne Regal → „Kein Regal konfiguriert — liegt in
+  Fach A/1" (Regal ist optional). ✓
+- Fehlgriff `T-99` → „⚠ Kein Teil mit ID T-99." statt Erfindung. ✓
+
+**Gate BESTANDEN.** Die Befüllung mit dem realen Bestand steht noch aus
+(Demo-DB wurde nicht übernommen); die produktive Einbindung zeigt auf
+`~/.hardware-copilot/bestand.db` und wird mit dem Merge dieses Branches aktiv.
