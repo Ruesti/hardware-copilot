@@ -151,11 +151,30 @@ Das ist der Kern. Hier keine schnellen Antworten.
 
 **E1.** Welche Bereiche gelten als heikel und bekommen eine Frage statt einer Anweisung? Erste Liste festlegen.
 
+> **Antwort:** Erste Liste, vier Bereiche:
+> 1. **Netzspannung** — alles über Schutzkleinspannung: 230 V, Netzteile, galvanische Trennung. Falsche Anweisung = Lebensgefahr.
+> 2. **Akku-Laden & Schutz** — LiPo/Li-Ion-Laden, Ladeschluss, Tiefentladung, Temperaturüberwachung. Brandgefahr.
+> 3. **Hochstrom & Thermik** — Leiterbahn-Strombelastbarkeit, Sicherungen, Kühlung, Motorströme.
+> 4. **Funk & Zertifizierung** — Antennen-Anpassung, Abstrahlung, CE/Funkzulassung. Fehler sind teuer und schwer rückholbar.
+
 **E2.** Wodurch wird das ausgelöst — Bauteilklasse, Netztopologie, Schlüsselwort im Prompt, manuelle Markierung?
+
+> **Antwort:** Doppelt abgesichert:
+> - Bereiche und Regeln tragen ein **Heikel-Flag** in der Regelbasis.
+> - Zusätzlich greifen **strukturelle Schwellen** aus den Bedingungsfeldern (B2) unabhängig von vorhandenen Regeln — z. B. Spannung > 50 V, Bauteilklasse Akku-Lader.
+> So löst auch eine Lücke (C6) im heiklen Bereich eine Frage aus, nicht nur eine getroffene Regel.
 
 **E3.** Wie sieht eine gute Frage aus? Zwei, drei echte Beispiele ausformulieren, sonst wird es Floskel.
 
+> **Antwort:** Stil: *Entscheidung mit Optionen* — die Frage stellt die offene Design-Entscheidung mit ihren Wegen dar, ohne einen zu wählen. Beispiele:
+>
+> > „Soll die 230-V-Seite auf dieser Platine liegen oder in einem fertigen Netzteil-Modul? Auf der Platine: Kriechstrecken nach IPC-2221 einhalten, Sicherung, Berührschutz. Modul: teurer, aber die Gefahr bleibt gekapselt."
+>
+> > „Trennst du Motor- und Logik-Masse in einem Punkt oder führst du eine gemeinsame Fläche? Ein Punkt: Rückströme kalkulierbar. Fläche: einfacher, aber Störungen wandern in die Logik."
+
 **E4.** Wird zur Frage eine Fundstelle mitgeliefert, wo man nachliest? Woher kommt die?
+
+> **Antwort:** Pflicht, wenn vorhanden. Die Fundstelle kommt aus der Quelle der auslösenden Regel (B3: Datenblatt mit Seite, Applikationsschrift, Norm). Existiert keine Regel — Lücke im heiklen Bereich — kommt die Frage ohne Fundstelle, ehrlich als solche markiert, und die Lücke landet im Protokoll (C6).
 
 ---
 
