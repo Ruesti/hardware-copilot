@@ -57,6 +57,8 @@ class BestandsDienst:
     def anlegen(self, bezeichnung: str, menge: int, fach: str, klasse: str = "",
                 hersteller_nr: str = "", eckdaten: str = "",
                 datenblatt_url: str = "") -> str:
+        if menge < 0:
+            raise BestandsFehler(f"Menge muss ≥ 0 sein, war {menge}.")
         fach_id = self._fach_id(fach)
         cur = self._conn.execute(
             "INSERT INTO teile (bezeichnung, hersteller_nr, klasse, menge,"

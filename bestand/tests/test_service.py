@@ -67,3 +67,8 @@ def test_suchen_ohne_treffer_benennt_das_offen(dienst):
 def test_unbekannte_t_id_ist_fehler(dienst):
     with pytest.raises(BestandsFehler, match="T-99"):
         dienst.suchen("T-99")
+
+
+def test_anlegen_lehnt_negative_menge_ab(dienst):
+    with pytest.raises(BestandsFehler, match="Menge"):
+        dienst.anlegen("X", menge=-1, fach="A/3")

@@ -76,7 +76,7 @@ def alternative_vermerken(teil_id: int, bezeichnung: str,
 @mcp.tool()
 def preis_cachen(teil_id: int, quelle: str, preis_eur: float, url: str = "") -> str:
     """Recherchierten Preis zum Teil ablegen. Das Datum setzt der Server;
-    Preise werden immer mit „Stand vom <datum>" ausgegeben, weil sie veralten."""
+    Preise werden immer mit „Stand vom <datum>“ ausgegeben, weil sie veralten."""
     return _antwort(lambda: _dienst().preis_cachen(
         teil_id, quelle, preis_eur, url=url))
 
@@ -86,7 +86,7 @@ def fach_leuchten(teil_id: int, farbe: str = "gruen", dauer_s: int = 30) -> str:
     """Das Regal-Fach eines Teils aufleuchten lassen (gruen = hier liegt dein
     Teil, blau = hier einsortieren). Ohne konfiguriertes Regal
     (BESTAND_REGAL_URL) wird nur das Fach genannt — auch das beantwortet
-    „wo liegt das Teil?"."""
+    „wo liegt das Teil?“."""
     return _antwort(lambda: _dienst().fach_leuchten(
         teil_id, farbe=farbe, dauer_s=dauer_s))
 

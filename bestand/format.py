@@ -1,7 +1,7 @@
 """Ausgabeformate des Bestands: Kurzzeile (Suche) und Markdown-Detail.
 
 Grundsatz aus der Spec (§6): Preise nie ohne Datum ausgeben — jede Preiszeile
-trägt „Stand vom <datum>".
+trägt „Stand vom <datum>“.
 """
 from __future__ import annotations
 
