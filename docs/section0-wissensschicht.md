@@ -228,6 +228,8 @@ Das ist der Kern. Hier keine schnellen Antworten.
 Datenmodell für Regel und Klassifikation, zwanzig Regeln von Hand eingetragen, kein Server, keine Tools.
 *Gate:* Trennt sich *belegt* von *Vermutung* an allen zwanzig sauber? Wenn nicht, zurück zu Block C.
 
+> **Ergebnis (2026-09-08): Gate BESTANDEN.** Repo `hardware-wissen` (lokal, `~/projects/hardware-wissen`): TOML-Schema nach B1/B2, 20 Regeln in den fünf B4-Bereichen — 15 × belegt (TI, Espressif, Nichicon, Littelfuse; alle mit PDF-Seite und selbst geprüftem Wortzitat), 5 × Vermutung. Maschineller Gate-Check: Trennung an allen 20 sauber. Details in `BERICHT-PHASE-1.md` dort. **Damit ist §0 abgeschlossen** (Blöcke A–F beantwortet + Schema an zwanzig real eingetragenen Regeln getestet).
+
 **Phase 2 — Server mit Abfrage.**
 MCP-Server, Regeln abfragbar, Ausgabeformat mit Stufe. Nur lesend.
 *Gate:* Ein realer Schaltungsausschnitt liefert Hinweise, die stimmen und deren Stufen ehrlich sind.
