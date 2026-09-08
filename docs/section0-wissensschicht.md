@@ -234,11 +234,21 @@ Datenmodell für Regel und Klassifikation, zwanzig Regeln von Hand eingetragen, 
 MCP-Server, Regeln abfragbar, Ausgabeformat mit Stufe. Nur lesend.
 *Gate:* Ein realer Schaltungsausschnitt liefert Hinweise, die stimmen und deren Stufen ehrlich sind.
 
+> **Ergebnis (2026-09-08): Gate BESTANDEN.** Server `wissensschicht/` (PR #4, gemergt), 5 Tools, 33 Tests; Gate-Lauf am realen ESP32-S3-Logger-Schaltplan; in Claude Code eingebunden (user-Scope). Details: `docs/BERICHT-PHASE-2-wissensschicht.md`.
+
 **Phase 3 — Vergleichstest.**
 Zwanzig bis dreißig Vergleiche gegen Referenzdesigns. Jede Lücke wird eine Regel mit Quelle.
 *Gate:* Dokumentierte Grenze — bei welcher Art Frage kippt der Rat.
 
+> **Ergebnis (2026-09-08): Gate ERFÜLLT.** 22 Vergleiche; Regelbasis auf 38 Regeln (34 belegt/4 Vermutung), neue Bereiche akku-laden/ldo/schnittstellen, Achsen chip_familie/topologie; Boost- und S3-Kipp-Punkte live behoben. Grenzen dokumentiert in `GRENZEN.md` (hardware-wissen), Bericht in `BERICHT-PHASE-3.md` dort.
+
+**Block E — Fragen statt Antworten (nachgezogen 2026-09-08):**
+
+> **Umgesetzt.** `heikel.toml` im Wissens-Repo (vier E1-Bereiche, E3-Fragen, E4-Fundstellen), Auslösung per Flag + Schwellen (spannung_v >= 50, strom_a >= 5, Klassen-/Achsen-Trigger). Netzspannung unterdrückt Kleinspannungs-Regeln mit Begründung; Katalog-Validierung gegen still geschluckte Werte. Live verifiziert: 230-V-Abfrage liefert die Frage statt vier BELEGT-Stempeln.
+
 **Phase 4 — Verified Blocks.**
 Erfassung fertig, bevor der Split-Flap-Controller gebaut wird.
+
+> **Ergebnis (2026-09-08): ERFÜLLT.** Erfassung gebaut und getestet, bevor die erste Platine existiert: record_block/search_blocks/get_block mit erzwungenem D2-Schema (ohne Messwerte, Messbedingungen, Grenzen, Ausschnitt wird nicht gespeichert), D3-Ausschnitt als eingefrorene Datei, D4-Hinweis in jeder Ausgabe, C5 bleibt beim Menschen. Schema weiterhin vorläufig (D5) — Revision nach den ersten echten Blöcken eingeplant. Bericht: `docs/BERICHT-PHASE-4-wissensschicht.md`.
 
 **BERICHT** nach jeder Phase: was gebaut, was getestet, was offen, welche Annahme sich als falsch erwiesen hat.

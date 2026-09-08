@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from .blocks import BlockFehler, block_volltext, erfasse_block, lade_bloecke, suche_bloecke
 from .checker import UnbekannteRegel, check_hint
 from .format import kurzform, volltext
 from .gaps import list_gaps, report_gap
@@ -120,6 +121,30 @@ class WissensDienst:
         zeilen = [f"Regel-Teil: {e.regel_stufe} | Anwendungs-Teil: {e.anwendung_stufe}"]
         zeilen += e.korrekturen
         return "\n".join(zeilen)
+
+    def erfasse_block(self, **daten) -> str:
+        try:
+            return erfasse_block(self.repo, **daten)
+        except BlockFehler as e:
+            return str(e)
+
+    def bloecke_suchen(self, suchbegriff: str) -> str:
+        treffer = suche_bloecke(lade_bloecke(self.repo), suchbegriff)
+        if not treffer:
+            return (f"Kein Verified Block zu '{suchbegriff}'. Es zählt nur, was real "
+                    "aufgebaut und vermessen wurde — Regeln liefert query_rules.")
+        zeilen = [f"[{b.id}] {b.titel} — {b.kernbauteil}, {b.projekt}, {b.datum} "
+                  f"(Grenzen: {b.grenzen})" for b in treffer]
+        zeilen.append("")
+        zeilen.append("Volltext über get_block(<ID>). ⚠ D4: Übertragung auf einen ähnlichen, "
+                      "nicht identischen Fall ist Vermutung — Abweichungen explizit auflisten.")
+        return "\n".join(zeilen)
+
+    def block(self, block_id: str) -> str:
+        bloecke = {b.id: b for b in lade_bloecke(self.repo)}
+        if block_id not in bloecke:
+            return f"Block {block_id} existiert nicht."
+        return block_volltext(bloecke[block_id])
 
     def luecken(self) -> list[dict]:
         return list_gaps(self.luecken_datei)
