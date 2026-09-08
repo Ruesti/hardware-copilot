@@ -91,6 +91,11 @@ Händler-APIs (Mouser/LCSC) sind eine eigene spätere Etappe.
 
 ### 3.3 Leucht-Regal (ESP32 + adressierbarer LED-Streifen, eine LED pro Fach)
 
+**Das Regal ist ein optionales Zubehör, keine Voraussetzung.** Bestands-DB, App
+und KI funktionieren vollständig ohne es: `fach_leuchten` nennt dann das Fach
+als Text („liegt in Fach A/3") statt zu leuchten. Etappe E3 kann beliebig spät
+kommen oder ganz entfallen — nichts anderes hängt davon ab.
+
 Bewusst dumm: Die Firmware kann genau eine Sache — per WLAN einen HTTP-Befehl
 entgegennehmen: „Fach 17, Farbe, Dauer". Die Zuordnung Teil→Fach→LED kennt nur die
 DB; das Backend übersetzt. Farben: Grün = „hier liegt dein Teil",
@@ -146,8 +151,10 @@ Backend → ESP32. Kein Motor beteiligt.
   Unsicherheit.
 - **E2 — App-Cockpit.** Bestand-Panel, Teil-Detail, Wissens-Panel ans Backend;
   Workbench entrümpeln. *Gate: Bestand pflegen und Regeln stöbern ohne Terminal.*
-- **E3 — Leucht-Regal.** Firmware (ein HTTP-Befehl), LED-Streifen, `faecher`-Zuordnung,
-  App-Knopf und MCP-Werkzeug. *Gate: Fach leuchtet auf App-Knopf und auf KI-Zuruf.*
+- **E3 — Leucht-Regal (optional).** Firmware (ein HTTP-Befehl), LED-Streifen,
+  `faecher`-Zuordnung, App-Knopf und MCP-Werkzeug. Kann beliebig verschoben werden
+  oder ganz entfallen — ohne Regal liefert `fach_leuchten` die Fach-Auskunft als
+  Text. *Gate: Fach leuchtet auf App-Knopf und auf KI-Zuruf.*
 - **E4 — Chat-Einbettung.** Motor-Schnittstelle, Agent-SDK-Anbindung, Chat-Panel.
   Bewusst zuletzt: größtes Neuland; alles davor ist auch ohne es voll brauchbar.
   *Gate: eine echte Schaltungsanfrage läuft komplett in der App, Panels spiegeln live.*
