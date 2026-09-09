@@ -56,10 +56,25 @@ export function baueEintraege(ereignisse: MotorEreignis[]): Eintrag[] {
           text: `— fertig (${e.kosten_usd.toFixed(2).replace(".", ",")} $)` });
       }
     } else if (e.typ === "verlauf") {
-      return baueEintraege(e.ereignisse);
+      // wird vom Live-Handler abgefangen (siehe ChatPanel-useEffect) —
+      // der Server verschachtelt verlauf-Ereignisse nie ineinander.
+      break;
     }
   }
   return eintraege;
+}
+
+/** Ermittelt aus dem Verlauf, ob serverseitig noch eine Antwort läuft:
+ *  letztes "nutzer" ohne folgendes "fertig" bedeutet laufend. Pure
+ *  Funktion, testbar — wird beim `verlauf`-Reconnect-Ereignis genutzt,
+ *  um den Stopp-Knopf korrekt zu (re-)aktivieren. */
+export function laeuftAusVerlauf(ereignisse: MotorEreignis[]): boolean {
+  for (let i = ereignisse.length - 1; i >= 0; i--) {
+    const e = ereignisse[i];
+    if (e.typ === "fertig") return false;
+    if (e.typ === "nutzer") return true;
+  }
+  return false;
 }
 
 export function ChatPanel() {
@@ -76,6 +91,7 @@ export function ChatPanel() {
     const verbindung = new MotorVerbindung((e: MotorEreignis) => {
       if (e.typ === "verlauf") {
         setAlleEreignisse(e.ereignisse);
+        setLaeuft(laeuftAusVerlauf(e.ereignisse));
         return;
       }
       setAlleEreignisse((prev) => [...prev, e]);

@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatPanel } from "./ChatPanel";
+import { ChatPanel, laeuftAusVerlauf } from "./ChatPanel";
 
 const mockMotor = vi.hoisted(() => ({
   senden: vi.fn(),
@@ -72,5 +72,22 @@ describe("ChatPanel", () => {
 
     expect(spy).toHaveBeenCalledTimes(1);
     window.removeEventListener("bestand-geaendert", spy);
+  });
+
+  it("laeuftAusVerlauf erkennt laufende Antwort", () => {
+    expect(laeuftAusVerlauf([{ typ: "nutzer", text: "Hi" }])).toBe(true);
+    expect(
+      laeuftAusVerlauf([
+        { typ: "nutzer", text: "Hi" },
+        { typ: "fertig", fehler: null },
+      ]),
+    ).toBe(false);
+    expect(laeuftAusVerlauf([])).toBe(false);
+  });
+
+  it("zeigt Stopp nach verlauf mit laufender Antwort", async () => {
+    render(<ChatPanel />);
+    feuere({ typ: "verlauf", ereignisse: [{ typ: "nutzer", text: "Hi" }] });
+    expect(await screen.findByText("Stopp")).toBeInTheDocument();
   });
 });
