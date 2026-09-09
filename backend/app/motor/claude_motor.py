@@ -394,9 +394,14 @@ class ClaudeMotor:
         if eintrag["art"] == "frage" and antwort:
             # AskUserQuestion erwartet "answers" als Record Frage→Antwort
             # (String wird abgelehnt — empirisch verifiziert im Rauchtest).
-            fragen = eintrag["eingabe"].get("questions") or []
-            answers = {f.get("question", ""): antwort for f in fragen if isinstance(f, dict)}
-            if not answers:
+            fragen = [f for f in (eintrag["eingabe"].get("questions") or [])
+                      if isinstance(f, dict)]
+            if fragen:
+                # Nur die erste Frage wird im Cockpit angezeigt (siehe
+                # _frage_aus_eingabe) — daher bekommt auch nur sie die Antwort;
+                # für nie gestellte Folgefragen wird nichts fabriziert.
+                answers = {fragen[0].get("question", ""): antwort}
+            else:
                 answers = {eintrag.get("text", ""): antwort}
             aktualisierte_eingabe = {**eintrag["eingabe"], "answers": answers}
         future.set_result(PermissionResultAllow(updated_input=aktualisierte_eingabe))

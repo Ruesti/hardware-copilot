@@ -291,3 +291,18 @@ async def test_frage_antwort_liefert_answers_als_record():
     await motor.rueckfrage_antworten(ereignis["id"], erlaubt=True, antwort="Blau")
     ergebnis = await asyncio.wait_for(aufgabe, timeout=2)
     assert ergebnis.updated_input["answers"] == {"Welche Farbe magst du?": "Blau"}
+
+
+@pytest.mark.asyncio
+async def test_frage_antwort_beantwortet_nur_die_erste_frage():
+    motor = ClaudeMotor(client_fabrik=lambda cb: None)
+    eingabe = {"questions": [
+        {"question": "Frage eins?", "options": [{"label": "A"}]},
+        {"question": "Frage zwei?", "options": [{"label": "B"}]},
+    ]}
+    aufgabe = asyncio.create_task(motor._can_use_tool("AskUserQuestion", eingabe, None))
+    ereignis = await asyncio.wait_for(motor._queue.get(), timeout=2)
+
+    await motor.rueckfrage_antworten(ereignis["id"], erlaubt=True, antwort="A")
+    ergebnis = await asyncio.wait_for(aufgabe, timeout=2)
+    assert ergebnis.updated_input["answers"] == {"Frage eins?": "A"}
