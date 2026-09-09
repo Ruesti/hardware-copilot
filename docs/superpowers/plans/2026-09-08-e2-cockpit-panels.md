@@ -13,7 +13,7 @@
 - Alle Bezeichner, Meldungen, UI-Texte und Tests auf Deutsch; deutsche Typografie („…“, —) in UI-Strings; Preise **nie ohne** „Stand vom <datum>".
 - Panels sprechen NUR HTTP mit dem Backend (`src/api/config.ts`, Basis `http://127.0.0.1:8000`) — kein Tauri-invoke, keine KI.
 - Backend-Umgebung: `BESTAND_DB` (Default `~/.hardware-copilot/bestand.db`), `WISSENSSCHICHT_REPO` (Default `~/projects/hardware-wissen`) — identisch zu den MCP-Servern; dieselben Dateien sind die eine Wahrheit.
-- `bestand/` und `wissensschicht/` bleiben eigenständige Pakete; das Backend importiert ihre Service-/Store-Schicht, niemals umgekehrt. Bestehende MCP-Verhalten (Meldungstexte, Stufen-Regeln) dürfen sich nicht ändern — alle 91 Bestandstests müssen grün bleiben.
+- `bestand/` und `wissensschicht/` bleiben eigenständige Pakete; das Backend importiert ihre Service-/Store-Schicht, niemals umgekehrt. Bestehende MCP-Verhalten (Meldungstexte, Stufen-Regeln) dürfen sich nicht ändern — alle 40 bestand-Tests müssen grün bleiben (91 Python-Tests gesamt mit wissensschicht).
 - Wissens-Grundsätze im UI: Stufe immer anzeigen, ⚠ VERMUTUNG-Marker nie unterschlagen.
 - Python-Tests: `~/projects/hardware-copilot/.venv-wissen/bin/python -m pytest <pfad> -v` vom Worktree-Root. Vorher einmalig (Task 2 Step 0): `~/projects/hardware-copilot/.venv-wissen/bin/pip install "fastapi>=0.110" httpx` (Testclient braucht httpx; uvicorn ist fürs Gate nötig: `pip install uvicorn`).
 - Frontend: `npm run build` (tsc + vite) muss nach jedem Frontend-Task grün sein; `npx vitest run` für Tests.
@@ -172,7 +172,7 @@ def test_mcp_suchen_verhaelt_sich_unveraendert(dienst):
 
 (`fmt.detail`/`fmt.kurzzeile` ignorieren überzählige Dict-Schlüssel nicht — sie greifen nur per Key zu, zusätzliche Schlüssel stören nicht.)
 
-- [ ] **Step 4: Alle Bestandstests laufen lassen** — `pytest bestand/tests/ -q`, Expected: **97 passed** (91 + 6 neue; die MCP-Verhaltenstests beweisen die Unveränderlichkeit)
+- [ ] **Step 4: Alle Bestandstests laufen lassen** — `pytest bestand/tests/ -q`, Expected: **46 passed** (40 + 6 neue; die MCP-Verhaltenstests beweisen die Unveränderlichkeit)
 
 - [ ] **Step 5: Commit** — `E2: Daten-Methoden im BestandsDienst (suche_daten, teil_daten, klassen_daten)`
 
@@ -429,7 +429,7 @@ def klassen():
     return _dienst().klassen_daten()
 ```
 
-- [ ] **Step 4: Tests laufen lassen** — `pytest backend/tests/ -v`, Expected: 7 passed; danach `pytest bestand/tests/ -q` weiterhin 97 passed
+- [ ] **Step 4: Tests laufen lassen** — `pytest backend/tests/ -v`, Expected: 7 passed; danach `pytest bestand/tests/ -q` weiterhin 46 passed
 
 - [ ] **Step 5: Commit** — `E2: Backend-Router bestand (Liste, Detail, Anlegen, Menge, Leuchten, Klassen)`
 
@@ -709,7 +709,7 @@ pydantic>=2.7
 
 `start_backend.sh`: uvicorn-Zeile ersetzen durch `uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000` (Aufruf vom Repo-Root; `--app-dir backend` entfernen).
 
-- [ ] **Step 4: Tests laufen lassen** — `pytest backend/tests/ bestand/tests/ wissensschicht/tests/ -q`, Expected: **15 + 97 + 51 = 163 passed**
+- [ ] **Step 4: Tests laufen lassen** — `pytest backend/tests/ bestand/tests/ wissensschicht/tests/ -q`, Expected: **15 + 46 + 51 = 112 passed**
 
 - [ ] **Step 5: Commit** — `E2: Backend entrümpelt — nur noch Cockpit-Routen (bestand, wissen, health)`
 
@@ -1100,5 +1100,5 @@ Kein neuer Feature-Code. Ende-zu-Ende am gebauten Frontend gegen das echte Backe
 
 - **Spec-Abdeckung E2 (§3.4):** Bestand-Panel (suchen/filtern/Menge/anlegen) ✓ T7; Teil-Detail (Eckdaten, Datenblatt, Alternativen, Preis-Historie mit Datum, Fach-leuchten-Knopf) ✓ T7; Wissens-Panel (Regeln nach Klasse+Stufe, Verified Blocks, Lücken, ⚠-Marker) ✓ T8; „Panels reden nur mit Backend" ✓ T2/3/6; Entrümpelung ✓ T4/5; Gate ✓ T9. Alternativen/Preise ERFASSEN in der App bewusst nicht (YAGNI — das macht die KI über MCP; Anzeige genügt laut Spec).
 - **Platzhalter:** T7/T8 Step 3 verweisen für die JSX-Vollform auf den Interfaces-Block + Skeleton — bewusster Zuschnitt: Verhalten, Felder, Farben, Zustände und Fehlervertrag sind vollständig spezifiziert, Implementer-Freiheit betrifft nur Markup-Details im vorgegebenen Stil.
-- **Typ-Konsistenz:** camelCase-Wire-Format überall (`herstellerNr`, `preisEur`, `datenblattUrl`, `dauerS`); `suche_daten`-Schlüssel (T1) = Router-Modelle (T2) = TS-Typen (T6) = Panel-Nutzung (T7/8) abgeglichen; Testzahlen kumulativ: 97 (bestand) / 13→15 (backend) / 163 gesamt Python.
+- **Typ-Konsistenz:** camelCase-Wire-Format überall (`herstellerNr`, `preisEur`, `datenblattUrl`, `dauerS`); `suche_daten`-Schlüssel (T1) = Router-Modelle (T2) = TS-Typen (T6) = Panel-Nutzung (T7/8) abgeglichen; Testzahlen kumulativ: 46 (bestand) / 13→15 (backend) / 112 gesamt Python.
 - **Risiko benannt:** Block-Dataclass-Feldnamen in T3 mit expliziter Verifikationsanweisung.
