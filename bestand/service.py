@@ -32,13 +32,13 @@ class BestandsDienst:
         if "/" not in fach:
             raise BestandsFehler(
                 f"Fach „{fach}“ nicht verstanden — Format ist Regal/Position, z. B. A/3.")
-        regal, position = fach.split("/", 1)
+        regal_name, position = fach.split("/", 1)
         self._conn.execute(
             "INSERT OR IGNORE INTO faecher (regal, position) VALUES (?, ?)",
-            (regal, position))
+            (regal_name, position))
         zeile = self._conn.execute(
             "SELECT id FROM faecher WHERE regal = ? AND position = ?",
-            (regal, position)).fetchone()
+            (regal_name, position)).fetchone()
         return zeile["id"]
 
     def _teil(self, teil_id: int) -> dict:
@@ -71,7 +71,8 @@ class BestandsDienst:
                 f"Menge {menge}, Fach {fach}.")
 
     def suchen(self, suchbegriff: str, klasse: str | None = None) -> str:
-        m = re.fullmatch(r"T-(\d+)", suchbegriff.strip())
+        suchbegriff = suchbegriff.strip()
+        m = re.fullmatch(r"T-(\d+)", suchbegriff)
         if m:
             teil_id = int(m.group(1))
             alternativen = [dict(z) for z in self._conn.execute(
@@ -82,11 +83,15 @@ class BestandsDienst:
                 (teil_id,))]
             return fmt.detail(self._teil(teil_id), alternativen, preise)
 
-        muster = f"%{suchbegriff}%"
+        if not suchbegriff:
+            return "Suchbegriff ist leer — bitte Begriff oder Teil-ID (T-<n>) angeben."
+
+        maskiert = suchbegriff.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        muster = f"%{maskiert}%"
         sql = ("SELECT t.id, t.bezeichnung, t.menge, t.klasse, f.regal, f.position"
                " FROM teile t LEFT JOIN faecher f ON f.id = t.fach_id"
-               " WHERE (t.bezeichnung LIKE ? OR t.hersteller_nr LIKE ?"
-               "        OR t.eckdaten LIKE ?)")
+               " WHERE (t.bezeichnung LIKE ? ESCAPE '\\' OR t.hersteller_nr LIKE ? ESCAPE '\\'"
+               "        OR t.eckdaten LIKE ? ESCAPE '\\')")
         parameter: list = [muster, muster, muster]
         if klasse:
             sql += " AND t.klasse = ?"

@@ -44,3 +44,7 @@ def test_preis_erscheint_im_detail_mit_stand_vom(dienst):
 def test_preis_null_oder_negativ_ist_fehler(dienst):
     with pytest.raises(BestandsFehler, match="Preis"):
         dienst.preis_cachen(1, "LCSC", 0)
+
+
+def test_menge_darf_exakt_auf_null(dienst):
+    assert dienst.menge_aendern(1, -10) == "[T-1] Menge jetzt 0."

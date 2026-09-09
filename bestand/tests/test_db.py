@@ -41,3 +41,18 @@ def test_fach_ist_je_regal_und_position_eindeutig(tmp_path):
 
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO faecher (regal, position) VALUES ('A', '3')")
+
+
+def test_verbinde_aktiviert_wal(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+
+    modus = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert modus == "wal"
+
+
+def test_fremdschluessel_werden_erzwungen(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO alternativen (teil_id, bezeichnung, datum)"
+                     " VALUES (999, 'X', '2026-09-08')")

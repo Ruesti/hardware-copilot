@@ -72,3 +72,22 @@ def test_unbekannte_t_id_ist_fehler(dienst):
 def test_anlegen_lehnt_negative_menge_ab(dienst):
     with pytest.raises(BestandsFehler, match="Menge"):
         dienst.anlegen("X", menge=-1, fach="A/3")
+
+
+def test_suchen_strippt_leerraum(dienst):
+    dienst.anlegen("100nF X7R 0805", menge=1, fach="A/3")
+
+    assert "[T-1]" in dienst.suchen("  100nF ")
+
+
+def test_suchen_mit_leerem_begriff_wird_abgelehnt(dienst):
+    assert "Suchbegriff ist leer" in dienst.suchen("   ")
+
+
+def test_suchen_behandelt_prozent_und_unterstrich_woertlich(dienst):
+    dienst.anlegen("Poti 10% Toleranz", menge=1, fach="A/3")
+    dienst.anlegen("Poti 20k linear", menge=1, fach="A/4")
+
+    treffer = dienst.suchen("10%")
+
+    assert "Toleranz" in treffer and "linear" not in treffer

@@ -40,3 +40,21 @@ def test_detail_listet_alternative_mit_datum():
          "hinweis": "gleiches Gehäuse", "datum": "2026-09-08"}], preise=[])
 
     assert "- GRM21BR71H104KA01 (Murata) — gleiches Gehäuse (vermerkt 2026-09-08)" in text
+
+
+def test_detail_formatiert_float_artefakte_weg():
+    text = detail(TEIL, alternativen=[], preise=[
+        {"quelle": "LCSC", "preis_eur": 0.30000000000000004, "url": "",
+         "datum": "2026-09-08"}])
+
+    assert "0.3 € bei LCSC — Stand vom 2026-09-08" in text
+    assert not text.rstrip().endswith("—")
+
+
+def test_kurzzeile_ohne_klasse_sagt_das_knapp():
+    teil = dict(TEIL, klasse="")
+
+    zeile = kurzzeile(teil)
+
+    assert zeile.endswith("ohne Klasse")
+    assert "Klasse ohne" not in zeile

@@ -8,9 +8,9 @@ from __future__ import annotations
 
 def kurzzeile(teil: dict) -> str:
     fach = f"Fach {teil['fach']}" if teil["fach"] else "kein Fach zugewiesen"
-    klasse = teil["klasse"] or "ohne Klasse"
+    klasse = f"Klasse {teil['klasse']}" if teil["klasse"] else "ohne Klasse"
     return (f"[T-{teil['id']}] {teil['bezeichnung']} — Menge {teil['menge']}, "
-            f"{fach}, Klasse {klasse}")
+            f"{fach}, {klasse}")
 
 
 def detail(teil: dict, alternativen: list[dict], preise: list[dict]) -> str:
@@ -32,8 +32,12 @@ def detail(teil: dict, alternativen: list[dict], preise: list[dict]) -> str:
 
     if preise:
         zeilen.append("Preise (veralten — Datum beachten):")
-        zeilen += [f"- {p['preis_eur']} € bei {p['quelle']} — "
-                   f"Stand vom {p['datum']} — {p['url']}" for p in preise]
+        for p in preise:
+            zeile = (f"- {p['preis_eur']:.4g} € bei {p['quelle']} — "
+                     f"Stand vom {p['datum']}")
+            if p["url"]:
+                zeile += f" — {p['url']}"
+            zeilen.append(zeile)
     else:
         zeilen.append("Preise: keine im Cache")
     return "\n".join(zeilen)

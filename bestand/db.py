@@ -2,6 +2,8 @@
 
 Die DB-Datei ist die einzige Wahrheit (Spec §6); der Pfad kommt vom Aufrufer
 (MCP-Server: Umgebungsvariable BESTAND_DB). projekte/verbrauch folgen erst in E5+.
+WAL-Modus und busy_timeout, weil ab E2 App-Backend und MCP-Server dieselbe Datei
+nebeneinander lesen.
 """
 from __future__ import annotations
 
@@ -52,5 +54,7 @@ def verbinde(pfad: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(pfad)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 3000")
     conn.executescript(_SCHEMA)
     return conn
