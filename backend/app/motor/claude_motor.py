@@ -358,6 +358,7 @@ class ClaudeMotor:
             "future": future,
             "art": art,
             "eingabe": eingabe,
+            "text": text,
         }
         await self._queue.put({
             "typ": RUECKFRAGE,
@@ -391,7 +392,13 @@ class ClaudeMotor:
             return
         aktualisierte_eingabe = None
         if eintrag["art"] == "frage" and antwort:
-            aktualisierte_eingabe = {**eintrag["eingabe"], "answers": antwort}
+            # AskUserQuestion erwartet "answers" als Record Frage→Antwort
+            # (String wird abgelehnt — empirisch verifiziert im Rauchtest).
+            fragen = eintrag["eingabe"].get("questions") or []
+            answers = {f.get("question", ""): antwort for f in fragen if isinstance(f, dict)}
+            if not answers:
+                answers = {eintrag.get("text", ""): antwort}
+            aktualisierte_eingabe = {**eintrag["eingabe"], "answers": answers}
         future.set_result(PermissionResultAllow(updated_input=aktualisierte_eingabe))
 
     def _offene_rueckfragen_abraeumen(self, grund: str) -> None:

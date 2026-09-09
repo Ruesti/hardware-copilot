@@ -277,3 +277,17 @@ async def test_frage_bindet_queue_pro_turn_neu():
     assert len(ereignisse) == 1
     assert ereignisse[0]["typ"] == "fertig"
     assert all("LECK" not in str(e) for e in ereignisse)
+
+
+@pytest.mark.asyncio
+async def test_frage_antwort_liefert_answers_als_record():
+    motor = ClaudeMotor(client_fabrik=lambda cb: None)
+    eingabe = {"questions": [{"question": "Welche Farbe magst du?",
+                              "options": [{"label": "Rot"}, {"label": "Blau"}]}]}
+    aufgabe = asyncio.create_task(motor._can_use_tool("AskUserQuestion", eingabe, None))
+    ereignis = await asyncio.wait_for(motor._queue.get(), timeout=2)
+    assert ereignis["art"] == "frage"
+
+    await motor.rueckfrage_antworten(ereignis["id"], erlaubt=True, antwort="Blau")
+    ergebnis = await asyncio.wait_for(aufgabe, timeout=2)
+    assert ergebnis.updated_input["answers"] == {"Welche Farbe magst du?": "Blau"}
