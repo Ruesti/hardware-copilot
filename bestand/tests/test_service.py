@@ -91,3 +91,13 @@ def test_suchen_behandelt_prozent_und_unterstrich_woertlich(dienst):
     treffer = dienst.suchen("10%")
 
     assert "Toleranz" in treffer and "linear" not in treffer
+
+
+def test_suchen_unterstrich_ist_kein_wildcard(dienst):
+    dienst.anlegen("A_B literal underscore", menge=1, fach="A/3")
+    dienst.anlegen("AXB single char instead", menge=1, fach="A/4")
+
+    treffer = dienst.suchen("A_B")
+
+    assert "A_B literal underscore" in treffer
+    assert "AXB single char instead" not in treffer
