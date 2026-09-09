@@ -1,13 +1,14 @@
-"""Cockpit-Backend (Spec §3.4): Bestand + Wissen für die App-Panels.
+"""Cockpit-Backend (Spec §3.4): Bestand + Wissen für die App-Panels + Motor-Chat.
 
 Die alte „App generiert KiCad selbst"-Strecke (Chat/Draft/Validate/Datasheet,
 Projekt-Welt, Claude-API) ist entfernt — KiCad läuft über Konnect, KI über
-Claude Code (Motor-Schnittstelle folgt in E4). Start vom Repo-Root:
+Claude Code (Motor-WebSocket unter /motor/ws, E4). Start vom Repo-Root:
 uvicorn backend.app.main:app
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .motor import router as motor_router
 from .routers import bestand, wissen
 
 app = FastAPI(title="Hardware-Copilot Cockpit")
@@ -23,6 +24,7 @@ app.add_middleware(
 
 app.include_router(bestand.router)
 app.include_router(wissen.router)
+app.include_router(motor_router.router)
 
 
 @app.get("/health")
