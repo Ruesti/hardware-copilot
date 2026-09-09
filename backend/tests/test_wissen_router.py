@@ -77,3 +77,14 @@ def test_luecken(client):
 def test_bloecke_leer(client):
     assert client.get("/wissen/bloecke").json() == []
     assert client.get("/wissen/bloecke/B-001").status_code == 404
+
+
+def test_kaputte_block_datei_gibt_503(client, tmp_path):
+    d = tmp_path / "bloecke"
+    d.mkdir(exist_ok=True)
+    (d / "B-001.toml").write_text("titel = kaputt ohne Anfuehrungszeichen")
+
+    r = client.get("/wissen/bloecke")
+
+    assert r.status_code == 503
+    assert "Blocks" in r.json()["detail"]

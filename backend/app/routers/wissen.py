@@ -6,6 +6,7 @@ fürs Panel. Stufen sind Daten; das Frontend zeigt sie unverändert an.
 from __future__ import annotations
 
 import os
+import tomllib
 from dataclasses import asdict
 from pathlib import Path
 
@@ -28,6 +29,13 @@ def _regeln():
         return load_rules(_repo())
     except StoreError as e:
         raise HTTPException(503, f"Wissens-Repo fehlerhaft: {e}") from e
+
+
+def _bloecke():
+    try:
+        return lade_bloecke(_repo())
+    except (tomllib.TOMLDecodeError, TypeError) as e:
+        raise HTTPException(503, f"Wissens-Repo fehlerhaft (Blocks): {e}") from e
 
 
 @router.get("/regeln")
@@ -60,12 +68,12 @@ def klassen():
 @router.get("/bloecke")
 def bloecke():
     return [{"id": b.id, "titel": b.titel, "kernbauteil": b.kernbauteil,
-             "topologie": b.topologie} for b in lade_bloecke(_repo())]
+             "topologie": b.topologie} for b in _bloecke()]
 
 
 @router.get("/bloecke/{block_id}")
 def block(block_id: str):
-    for b in lade_bloecke(_repo()):
+    for b in _bloecke():
         if b.id == block_id:
             return {**asdict(b), "volltext": block_volltext(b)}
     raise HTTPException(404, f"Kein Block {block_id}.")
