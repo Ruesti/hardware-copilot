@@ -9,7 +9,9 @@ def test_health():
 
 
 def test_nur_cockpit_routen():
-    pfade = {r.path for r in app.routes if hasattr(r, "path")}
+    # Über das OpenAPI-Schema statt app.routes: neuere FastAPI-Versionen
+    # legen eingebundene Router nicht mehr flach in app.routes ab.
+    pfade = set(app.openapi()["paths"])
 
     assert any(p.startswith("/bestand") for p in pfade)
     assert any(p.startswith("/wissen") for p in pfade)
