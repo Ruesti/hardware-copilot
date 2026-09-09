@@ -7,6 +7,13 @@ Lücken-Protokoll). Die KI-Arbeit — Schaltung entwerfen über Konnect/KiCad,
 Regeln abfragen, Bestand pflegen — läuft über Claude Code mit den
 MCP-Servern `wissensschicht/` und `bestand/`; die Panels lesen dieselbe
 Datenschicht (`~/.hardware-copilot/bestand.db` + Wissens-Repo), nie den Chat.
+Seit Etappe E4 gibt es den Chat auch direkt in der App: Der Tab „Chat"
+spricht über die neutrale Motor-Schnittstelle (`backend/app/motor/`) mit
+Claude übers Agent SDK — mit denselben MCP-Werkzeugen; Rückfragen
+erscheinen als Karten im Panel, und Bestandsänderungen der KI spiegeln
+sofort in den Bestand-Tab. Auth wie Claude Code: Der Chat nutzt dieselbe
+Anmeldung — ist `ANTHROPIC_API_KEY` gesetzt, wird darüber abgerechnet;
+für Abo-Betrieb die Variable nicht setzen.
 Entwurf: `docs/superpowers/specs/2026-09-08-cockpit-bestand-leuchtregal-design.md`.
 
 ### Cockpit starten
