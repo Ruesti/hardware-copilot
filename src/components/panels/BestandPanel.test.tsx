@@ -42,4 +42,17 @@ describe("BestandPanel", () => {
     expect(screen.getByLabelText("Bezeichnung")).toBeInTheDocument();
     expect(screen.getByLabelText("Fach (Regal/Position)")).toBeInTheDocument();
   });
+
+  it("rendert javascript-URLs nicht als Link", async () => {
+    const detail = { ...DETAIL, datenblattUrl: "javascript:alert(1)" };
+    mockFetch({ "/bestand/teile/1": detail, "/bestand/teile": TEILE,
+                "/bestand/klassen": [] });
+    render(<BestandPanel />);
+    await screen.findByText(/100nF X7R 0805/);
+    await userEvent.click(screen.getByText(/100nF X7R 0805/));
+
+    await waitFor(() =>
+      expect(screen.getByText(/javascript:alert\(1\)/)).toBeInTheDocument());
+    expect(screen.getByText(/javascript:alert\(1\)/).closest("a")).toBeNull();
+  });
 });

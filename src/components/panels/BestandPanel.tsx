@@ -7,6 +7,9 @@ const RAND = "1px solid #18181b";
 const GEDAEMPFT = "#a1a1aa";
 const FEHLERFARBE = "#f87171";
 
+const istWebUrl = (url: string) =>
+  url.startsWith("https://") || url.startsWith("http://");
+
 type FormularState = {
   bezeichnung: string;
   menge: string;
@@ -34,14 +37,20 @@ export function BestandPanel() {
   const [formular, setFormular] = useState<FormularState>(LEERES_FORMULAR);
 
   const laden = useCallback(() => {
-    fetchTeile(suche, klasse).then(setTeile).catch((e) => setFehler(e.message));
+    fetchTeile(suche, klasse)
+      .then((t) => { setTeile(t); setFehler(""); })
+      .catch((e) => setFehler(e.message));
   }, [suche, klasse]);
 
   useEffect(() => { laden(); }, [laden]);
-  useEffect(() => { fetchBestandKlassen().then(setKlassen).catch(() => {}); }, []);
+  useEffect(() => {
+    fetchBestandKlassen().then(setKlassen).catch((e) => setFehler(e.message));
+  }, []);
 
   const detailLaden = (id: number) =>
-    fetchTeil(id).then(setAuswahl).catch((e) => setFehler(e.message));
+    fetchTeil(id)
+      .then((t) => { setAuswahl(t); setFehler(""); })
+      .catch((e) => setFehler(e.message));
 
   const mengeAendern = (id: number, delta: number) =>
     patchMenge(id, delta)
@@ -230,10 +239,12 @@ export function BestandPanel() {
                 <div>{`Eckdaten: ${auswahl.eckdaten || "—"}`}</div>
                 <div>
                   Datenblatt:{" "}
-                  {auswahl.datenblattUrl
+                  {!auswahl.datenblattUrl
+                    ? <span style={{ color: GEDAEMPFT }}>— keine hinterlegt</span>
+                    : istWebUrl(auswahl.datenblattUrl)
                     ? <a href={auswahl.datenblattUrl} target="_blank" rel="noreferrer"
                          style={{ color: "#e4e4e7" }}>{auswahl.datenblattUrl}</a>
-                    : <span style={{ color: GEDAEMPFT }}>— keine hinterlegt</span>}
+                    : <span>{auswahl.datenblattUrl}</span>}
                 </div>
               </div>
 
