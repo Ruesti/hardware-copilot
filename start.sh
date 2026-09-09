@@ -28,7 +28,7 @@ trap cleanup EXIT INT TERM
 echo "Starte Backend (uvicorn) auf http://127.0.0.1:8000 ..."
 (
   source backend/.venv/bin/activate
-  exec uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+  exec uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ) &
 BACKEND_PID=$!
 
