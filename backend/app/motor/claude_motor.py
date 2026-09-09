@@ -204,21 +204,35 @@ class ClaudeMotor:
                 await uebersetzer
 
     async def _uebersetzer_lauf(self) -> None:
-        """Liest SDK-Messages und pusht übersetzte Ereignisse in die Queue."""
+        """Liest SDK-Messages und pusht übersetzte Ereignisse in die Queue.
+
+        Ein Absturz beim Iterieren (z. B. SDK-Verbindungsfehler) darf
+        ``frage()`` nicht für immer hängen lassen — die dortige Queue-Schleife
+        wartet sonst ewig auf ein "fertig"-Ereignis, das nie kommt. Deshalb
+        fängt dieser Rumpf jede Exception ab und legt selbst ein "fertig" mit
+        Fehlertext in die Queue (Spec §6: Abbruch muss sich im Chat melden).
+        """
         werkzeug_namen: dict[str, str] = {}
-        async for message in self._client.receive_response():
-            if isinstance(message, ResultMessage):
-                fehler = None if message.subtype == "success" else message.subtype
-                await self._queue.put({
-                    "typ": FERTIG,
-                    "fehler": fehler,
-                    "kosten_usd": message.total_cost_usd,
-                })
-                continue
-            inhalt = getattr(message, "content", None)
-            if isinstance(inhalt, list):
-                for ereignis in uebersetze_bloecke(inhalt, werkzeug_namen):
-                    await self._queue.put(ereignis)
+        try:
+            async for message in self._client.receive_response():
+                if isinstance(message, ResultMessage):
+                    fehler = None if message.subtype == "success" else message.subtype
+                    await self._queue.put({
+                        "typ": FERTIG,
+                        "fehler": fehler,
+                        "kosten_usd": message.total_cost_usd,
+                    })
+                    continue
+                inhalt = getattr(message, "content", None)
+                if isinstance(inhalt, list):
+                    for ereignis in uebersetze_bloecke(inhalt, werkzeug_namen):
+                        await self._queue.put(ereignis)
+        except Exception as e:
+            await self._queue.put({
+                "typ": FERTIG,
+                "fehler": f"Motor-Fehler: {e}",
+                "kosten_usd": None,
+            })
 
     async def _can_use_tool(self, werkzeug_name: str, eingabe: dict, kontext: Any):
         """Permission-Callback: stellt eine Rückfrage und wartet auf die Antwort."""
@@ -252,9 +266,19 @@ class ClaudeMotor:
     async def rueckfrage_antworten(
         self, rueckfrage_id: str, erlaubt: bool, antwort: str | None
     ) -> None:
-        """Löst eine offene Rückfrage auf und setzt das wartende Future."""
-        eintrag = self._offene_rueckfragen.pop(rueckfrage_id)
+        """Löst eine offene Rückfrage auf und setzt das wartende Future.
+
+        Unbekannte oder schon beantwortete IDs (z. B. eine doppelt beim
+        Client eingehende Antwort, oder ein Nachzügler nach ``abbrechen()``,
+        das alle offenen Rückfragen bereits abgeräumt hat) werden still
+        ignoriert statt mit ``KeyError``/``InvalidStateError`` zu crashen.
+        """
+        eintrag = self._offene_rueckfragen.pop(rueckfrage_id, None)
+        if eintrag is None:
+            return
         future = eintrag["future"]
+        if future.done():
+            return
         if not erlaubt:
             future.set_result(
                 PermissionResultDeny(message=antwort or "Vom Nutzer abgelehnt")

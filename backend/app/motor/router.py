@@ -22,6 +22,18 @@ router = APIRouter()
 # Modul-Fabrik — in Tests durch einen FakeMotor ersetzt (motor_router.motor_fabrik = ...)
 motor_fabrik = ClaudeMotor
 
+# Erlaubte Browser-Origins für den WS-Handshake — exakt die 6 CORS-Origins aus
+# main.py plus die beiden Tauri-Ursprünge (Desktop-App-Frontend läuft nicht
+# über http(s), sondern über das Tauri-eigene Custom-Scheme). Ein fehlender
+# Origin-Header (Nicht-Browser-Clients wie Tests/Skripte) wird erlaubt — nur
+# ein *falscher* Origin wird abgelehnt.
+ERLAUBTE_ORIGINS = {
+    "http://localhost:1420", "http://127.0.0.1:1420",
+    "http://localhost:5173", "http://127.0.0.1:5173",
+    "http://localhost:4173", "http://127.0.0.1:4173",
+    "tauri://localhost", "http://tauri.localhost",
+}
+
 # Modulzustand: ein Motor, der Sitzungs-Verlauf und die verbundenen Clients.
 _motor: Any = None
 _verlauf: list[dict] = []
@@ -143,6 +155,11 @@ async def _neustart() -> None:
 async def motor_ws(websocket: WebSocket) -> None:
     global _laufende_frage
 
+    origin = websocket.headers.get("origin")
+    if origin is not None and origin not in ERLAUBTE_ORIGINS:
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
     _clients.add(websocket)
     try:
@@ -160,7 +177,7 @@ async def motor_ws(websocket: WebSocket) -> None:
                     )
                     continue
                 text = nachricht.get("text", "")
-                _verlauf.append({"typ": "nutzer", "text": text})
+                await _sende_an_alle({"typ": "nutzer", "text": text})
                 if not await _motor_sicherstellen():
                     continue
                 _laufende_frage = asyncio.create_task(_frage_ausfuehren(text))
