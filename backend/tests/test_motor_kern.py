@@ -60,3 +60,15 @@ async def test_rueckfrage_ablehnen_traegt_nachricht():
     ergebnis = await aufgabe
     assert type(ergebnis).__name__ == "PermissionResultDeny"
     assert "zu riskant" in ergebnis.message
+
+
+@pytest.mark.asyncio
+async def test_abbrechen_loest_offene_rueckfragen_auf():
+    motor = ClaudeMotor(client_fabrik=lambda cb: None)
+    aufgabe = asyncio.create_task(motor._can_use_tool("Bash", {"command": "ls"}, None))
+    await motor._queue.get()
+
+    await motor.abbrechen()
+    ergebnis = await asyncio.wait_for(aufgabe, timeout=2)
+    assert type(ergebnis).__name__ == "PermissionResultDeny"
+    assert motor._offene_rueckfragen == {}

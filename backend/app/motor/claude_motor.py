@@ -157,6 +157,10 @@ def _optionen(rueckfrage_callback) -> ClaudeAgentOptions:
         # Wildcard-Suffix "__*" ist die vom SDK verifizierte Form, um alle
         # Werkzeuge eines MCP-Servers freizugeben (siehe Report: SDK-Realität
         # vs. Brief — der Brief-Entwurf ohne "__*" hätte keine Wirkung gehabt).
+        # Empirisch verifiziert 2026-09-09: Rauchtest mit echter SDK-Session
+        # (teil_suchen über mcp__bestand__teil_suchen) löste keine Rückfrage
+        # aus und lieferte den echten Bestandstreffer; das SDK selbst warnt
+        # zudem, dass ein solcher allowed_tools-Eintrag can_use_tool umgeht.
         allowed_tools=["mcp__bestand__*", "mcp__wissensschicht__*"],
     )
 
@@ -261,10 +265,26 @@ class ClaudeMotor:
             aktualisierte_eingabe = {**eintrag["eingabe"], "answers": antwort}
         future.set_result(PermissionResultAllow(updated_input=aktualisierte_eingabe))
 
+    def _offene_rueckfragen_abraeumen(self, grund: str) -> None:
+        """Löst alle noch offenen Rückfragen-Futures ab und leert das Dict.
+
+        Verhindert, dass ``rueckfrage_antworten()`` nie aufgerufen wird und
+        die wartenden ``_can_use_tool``-Coroutinen (und damit die SDK-Antwort)
+        bei Abbruch oder Sitzungsende für immer hängen bleiben.
+        """
+        for eintrag in self._offene_rueckfragen.values():
+            future = eintrag["future"]
+            if not future.done():
+                future.set_result(PermissionResultDeny(message=grund))
+        self._offene_rueckfragen.clear()
+
     async def abbrechen(self) -> None:
         """Bricht die laufende Antwort ab."""
-        await self._client.interrupt()
+        self._offene_rueckfragen_abraeumen("Vom Nutzer abgebrochen")
+        if self._client is not None:
+            await self._client.interrupt()
 
     async def stop(self) -> None:
         """Trennt den SDK-Client (das Äquivalent zum Context-Manager-Austritt)."""
+        self._offene_rueckfragen_abraeumen("Sitzung beendet")
         await self._client.disconnect()
