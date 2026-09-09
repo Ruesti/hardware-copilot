@@ -1,11 +1,13 @@
 import { BestandPanel } from "../panels/BestandPanel";
+import { ChatPanel } from "../panels/ChatPanel";
 import { WissensPanel } from "../panels/WissensPanel";
 
-export type TabId = "bestand" | "wissen";
+export type TabId = "bestand" | "wissen" | "chat";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "bestand", label: "Bestand" },
   { id: "wissen", label: "Wissen" },
+  { id: "chat", label: "Chat" },
 ];
 
 type Props = { tab: TabId; onTabChange: (t: TabId) => void };
@@ -30,7 +32,7 @@ export function AppShell({ tab, onTabChange }: Props) {
         </nav>
       </header>
       <main style={{ flex: 1, minHeight: 0, display: "flex" }}>
-        {tab === "bestand" ? <BestandPanel /> : <WissensPanel />}
+        {tab === "bestand" ? <BestandPanel /> : tab === "wissen" ? <WissensPanel /> : <ChatPanel />}
       </main>
     </div>
   );
