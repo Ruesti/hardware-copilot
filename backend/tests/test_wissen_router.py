@@ -88,3 +88,13 @@ def test_kaputte_block_datei_gibt_503(client, tmp_path):
 
     assert r.status_code == 503
     assert "Blocks" in r.json()["detail"]
+
+
+def test_kaputte_regel_datei_gibt_503(client, tmp_path):
+    d = tmp_path / "regeln" / "schaltregler"
+    (d / "R-002.toml").write_text("id = kaputt ohne Anfuehrungszeichen")
+
+    r = client.get("/wissen/regeln")
+
+    assert r.status_code == 503
+    assert "fehlerhaft" in r.json()["detail"]

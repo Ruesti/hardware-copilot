@@ -2,13 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { createTeil, fetchBestandKlassen, fetchTeil, fetchTeile,
          leuchten, patchMenge } from "../../api/bestand";
 import type { TeilDetail, TeilKurz, TeilNeu } from "../../types/bestand";
+import { istWebUrl } from "./urlSchema";
 
 const RAND = "1px solid #18181b";
 const GEDAEMPFT = "#a1a1aa";
 const FEHLERFARBE = "#f87171";
-
-const istWebUrl = (url: string) =>
-  url.startsWith("https://") || url.startsWith("http://");
 
 type FormularState = {
   bezeichnung: string;

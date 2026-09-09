@@ -24,7 +24,6 @@ npm run dev          # bzw. npm run tauri dev
 python -m pytest backend/tests/ bestand/tests/ wissensschicht/tests/
 npx vitest run && npm run build
 ```
-- connect the chat workflow to structured technical draft generation
 
 ### Local Development
 
@@ -35,6 +34,7 @@ git clone <repo>
 cd hardware-copilot
 ./bootstrap.sh
 ./start_dev.sh
+```
 
 # 1. Voraussetzungen installieren
 

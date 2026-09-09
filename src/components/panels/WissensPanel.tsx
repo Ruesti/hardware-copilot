@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchBloecke, fetchBlock, fetchLuecken, fetchRegel, fetchRegeln,
          fetchWissenKlassen } from "../../api/wissen";
 import type { BlockKurz, BlockVoll, LueckeEintrag, RegelKurz, RegelVoll } from "../../types/wissen";
+import { istWebUrl } from "./urlSchema";
 
 const RAND = "1px solid #18181b";
 const GEDAEMPFT = "#a1a1aa";
@@ -170,6 +171,15 @@ export function WissensPanel() {
                         {regelAuswahl.quelle.dokument && ` (${regelAuswahl.quelle.dokument})`}
                       </div>
                       <div>{`Fundstelle: ${regelAuswahl.quelle.fundstelle || "—"}`}</div>
+                      {regelAuswahl.quelle.url && (
+                        <div>
+                          Quelle-URL:{" "}
+                          {istWebUrl(regelAuswahl.quelle.url)
+                            ? <a href={regelAuswahl.quelle.url} target="_blank" rel="noreferrer"
+                                 style={{ color: "#e4e4e7" }}>{regelAuswahl.quelle.url}</a>
+                            : <span>{regelAuswahl.quelle.url}</span>}
+                        </div>
+                      )}
                       {regelAuswahl.quelle.zitat && (
                         <blockquote style={{ margin: "4px 0", padding: "4px 12px",
                                               borderLeft: "3px solid #27272a",

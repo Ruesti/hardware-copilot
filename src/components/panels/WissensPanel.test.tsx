@@ -14,6 +14,12 @@ const VOLL = { id: "R-008", bereich: "schaltregler", aussage: "FB-Massefuß eige
   datum_eintrag: "2026-09-08", datum_geprueft: "2026-09-08", ausnahmen: [],
   quelle: { typ: "keine", titel: "", dokument: "", fundstelle: "", url: "", zitat: "" },
   geltung: { klasse: "schaltregler" } };
+const VOLL_MIT_QUELLE = { id: "R-005", bereich: "schaltregler", aussage: "Hot Loop klein halten.",
+  begruendung: "Kurze Wege reduzieren Störungen.", staerke: "muss", stufe: "belegt",
+  datum_eintrag: "2026-09-08", datum_geprueft: "2026-09-08", ausnahmen: [],
+  quelle: { typ: "datenblatt", titel: "TB", dokument: "D1", fundstelle: "S. 1",
+            url: "https://example.com/x.pdf", zitat: "Z" },
+  geltung: { klasse: "schaltregler" } };
 
 function mockFetch(routen: Record<string, unknown>) {
   vi.stubGlobal("fetch", vi.fn((eingabe: RequestInfo | URL) => {
@@ -37,6 +43,18 @@ describe("WissensPanel", () => {
 
     await waitFor(() =>
       expect(screen.getAllByText(/⚠ VERMUTUNG/).length).toBeGreaterThan(0));
+  });
+
+  it("zeigt quelle.url im Regel-Detail als Link", async () => {
+    mockFetch({ "/wissen/regeln/R-005": VOLL_MIT_QUELLE, "/wissen/regeln": REGELN,
+                "/wissen/klassen": ["schaltregler"] });
+    render(<WissensPanel />);
+
+    await userEvent.click(await screen.findByText(/Hot Loop klein halten/));
+
+    const link = await screen.findByText("https://example.com/x.pdf");
+    expect(link.closest("a")).not.toBeNull();
+    expect(link.closest("a")).toHaveAttribute("href", "https://example.com/x.pdf");
   });
 
   it("wechselt zur Lücken-Tabelle", async () => {
