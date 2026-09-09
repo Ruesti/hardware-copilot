@@ -51,7 +51,8 @@ export function baueEintraege(ereignisse: MotorEreignis[]): Eintrag[] {
     } else if (e.typ === "fertig") {
       if (e.fehler) {
         eintraege.push({ typ: "gedaempft", text: `⚠ ${e.fehler}`, farbe: FEHLERFARBE });
-      } else if (e.kosten_usd != null) {
+      }
+      if (e.kosten_usd != null) {
         eintraege.push({ typ: "gedaempft",
           text: `— fertig (${e.kosten_usd.toFixed(2).replace(".", ",")} $)` });
       }
@@ -86,12 +87,23 @@ export function ChatPanel() {
   const [ablehnenOffen, setAblehnenOffen] = useState<Record<string, boolean>>({});
   const [ablehnenText, setAblehnenText] = useState<Record<string, string>>({});
   const [antwortText, setAntwortText] = useState<Record<string, string>>({});
+  // Optimistisch verbunden: WS-Handshake ist meist sofort durch, so gibt es
+  // bei normalem Verbindungsaufbau keinen Warn-Flackerer. Der Callback holt
+  // uns bei einem echten Abbruch (close/error) auf `false`.
+  const [verbunden, setVerbunden] = useState(true);
 
   useEffect(() => {
     const verbindung = new MotorVerbindung((e: MotorEreignis) => {
       if (e.typ === "verlauf") {
         setAlleEreignisse(e.ereignisse);
         setLaeuft(laeuftAusVerlauf(e.ereignisse));
+        // Verlauf-Replay zeigt Rückfrage-Karten erneut aus den rohen
+        // Ereignissen auf — ohne Reset blieben sie durch den lokalen
+        // `beantwortet`-State fälschlich als "beantwortet" markiert.
+        // Unbedenklich: der Server ist seit pop(id, None) idempotent,
+        // eine erneute Antwort auf eine längst beantwortete Rückfrage
+        // verpufft dort folgenlos.
+        setBeantwortet({});
         return;
       }
       setAlleEreignisse((prev) => [...prev, e]);
@@ -99,7 +111,10 @@ export function ChatPanel() {
       if (e.typ === "werkzeug_fertig" && e.name.startsWith("mcp__bestand")) {
         window.dispatchEvent(new CustomEvent("bestand-geaendert"));
       }
-    });
+      if (e.typ === "werkzeug_fertig" && e.name.startsWith("mcp__wissensschicht")) {
+        window.dispatchEvent(new CustomEvent("wissen-geaendert"));
+      }
+    }, setVerbunden);
     verbindungRef.current = verbindung;
     return () => verbindung.schliessen();
   }, []);
@@ -111,6 +126,7 @@ export function ChatPanel() {
   }, []);
 
   const senden = () => {
+    if (laeuft) return;
     const text = eingabe.trim();
     if (!text) return;
     verbindungRef.current?.senden(text);
@@ -121,6 +137,7 @@ export function ChatPanel() {
   const onEingabeKeyDown = (ev: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (ev.key === "Enter" && !ev.shiftKey) {
       ev.preventDefault();
+      if (laeuft) return; // Text bleibt im Feld stehen, kein Senden während laufender Antwort
       senden();
     }
   };
@@ -265,15 +282,22 @@ export function ChatPanel() {
         })}
       </div>
 
+      {!verbunden && (
+        <div style={{ padding: "4px 12px", fontSize: 12, color: FEHLERFARBE }}>
+          ⚠ nicht verbunden — verbinde neu …
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, padding: 12, borderTop: RAND }}>
         <textarea
           value={eingabe}
           onChange={(e) => setEingabe(e.target.value)}
           onKeyDown={onEingabeKeyDown}
-          placeholder="Nachricht an Claude — Enter sendet, Shift+Enter Zeilenumbruch"
+          placeholder={laeuft
+            ? "Antwort läuft — Stopp zum Abbrechen"
+            : "Nachricht an Claude — Enter sendet, Shift+Enter Zeilenumbruch"}
           style={{ ...FELD_STIL, flex: 1, minHeight: 44, resize: "vertical" }}
         />
-        <button type="button" onClick={senden} style={KNOPF_STIL}>
+        <button type="button" onClick={senden} disabled={laeuft} style={KNOPF_STIL}>
           Senden
         </button>
         {laeuft && (

@@ -63,21 +63,38 @@ export function WissensPanel() {
     fetchWissenKlassen().then(setKlassen).catch((e) => setFehler(e.message));
   }, []);
 
-  useEffect(() => {
-    if (subTab === "blocks") {
-      fetchBloecke()
-        .then((b) => { setBloecke(b); setFehler(""); })
-        .catch((e) => setFehler(e.message));
-    }
-  }, [subTab]);
+  const bloeckeLaden = useCallback(() => {
+    fetchBloecke()
+      .then((b) => { setBloecke(b); setFehler(""); })
+      .catch((e) => setFehler(e.message));
+  }, []);
 
   useEffect(() => {
-    if (subTab === "luecken") {
-      fetchLuecken()
-        .then((l) => { setLuecken(l); setFehler(""); })
-        .catch((e) => setFehler(e.message));
-    }
-  }, [subTab]);
+    if (subTab === "blocks") bloeckeLaden();
+  }, [subTab, bloeckeLaden]);
+
+  const lueckenLaden = useCallback(() => {
+    fetchLuecken()
+      .then((l) => { setLuecken(l); setFehler(""); })
+      .catch((e) => setFehler(e.message));
+  }, []);
+
+  useEffect(() => {
+    if (subTab === "luecken") lueckenLaden();
+  }, [subTab, lueckenLaden]);
+
+  // Live-Spiegel: ChatPanel feuert dieses Event nach jedem abgeschlossenen
+  // mcp__wissensschicht-Werkzeugaufruf (siehe ChatPanel.tsx). Lädt nur die
+  // Daten des gerade aktiven Sub-Tabs neu, um unnötige Requests zu sparen.
+  useEffect(() => {
+    const neuLaden = () => {
+      if (subTab === "regeln") regelnLaden();
+      else if (subTab === "blocks") bloeckeLaden();
+      else if (subTab === "luecken") lueckenLaden();
+    };
+    window.addEventListener("wissen-geaendert", neuLaden);
+    return () => window.removeEventListener("wissen-geaendert", neuLaden);
+  }, [subTab, regelnLaden, bloeckeLaden, lueckenLaden]);
 
   const regelLaden = (id: string) =>
     fetchRegel(id)

@@ -13,6 +13,7 @@ class WebSocketStub {
   onopen: (() => void) | null = null;
   onmessage: ((ev: { data: string }) => void) | null = null;
   onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
 
   constructor(public url: string) {
     WebSocketStub.instances.push(this);
@@ -50,5 +51,38 @@ describe("api/motor", () => {
     socket.onmessage?.({ data: JSON.stringify({ typ: "text_haeppchen", text: "Hi" }) });
 
     expect(aufEreignis).toHaveBeenCalledWith({ typ: "text_haeppchen", text: "Hi" });
+  });
+
+  it("aufStatus feuert true bei open", () => {
+    const aufStatus = vi.fn();
+    new MotorVerbindung(() => {}, aufStatus);
+    const socket = WebSocketStub.instances[0];
+
+    socket.onopen?.();
+
+    expect(aufStatus).toHaveBeenCalledWith(true);
+  });
+
+  it("aufStatus feuert false bei close und bei error", () => {
+    const aufStatus = vi.fn();
+    new MotorVerbindung(() => {}, aufStatus);
+    const socket = WebSocketStub.instances[0];
+
+    socket.onerror?.();
+    socket.onclose?.();
+
+    expect(aufStatus).toHaveBeenCalledWith(false);
+    expect(aufStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("aufStatus ist optional — bestehendes Verhalten ohne Callback bricht nicht", () => {
+    const verbindung = new MotorVerbindung(() => {});
+    const socket = WebSocketStub.instances[0];
+
+    expect(() => {
+      socket.onopen?.();
+      socket.onclose?.();
+    }).not.toThrow();
+    verbindung.schliessen();
   });
 });

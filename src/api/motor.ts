@@ -10,16 +10,22 @@ export class MotorVerbindung {
   private absichtlichGeschlossen = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly aufEreignis: (e: MotorEreignis) => void) {
+  constructor(
+    private readonly aufEreignis: (e: MotorEreignis) => void,
+    private readonly aufStatus?: (verbunden: boolean) => void,
+  ) {
     this.socket = this.verbinden();
   }
 
   private verbinden(): WebSocket {
     const socket = new WebSocket(WS_URL);
+    socket.onopen = () => this.aufStatus?.(true);
     socket.onmessage = (ev: MessageEvent) => {
       this.aufEreignis(JSON.parse(ev.data as string) as MotorEreignis);
     };
+    socket.onerror = () => this.aufStatus?.(false);
     socket.onclose = () => {
+      this.aufStatus?.(false);
       if (!this.absichtlichGeschlossen) {
         this.reconnectTimer = setTimeout(() => {
           this.socket = this.verbinden();
