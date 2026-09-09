@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 import sys
 import uuid
@@ -117,43 +118,129 @@ def uebersetze_bloecke(bloecke, werkzeug_namen: dict[str, str]) -> list[dict]:
     return ereignisse
 
 
-def _optionen(rueckfrage_callback) -> ClaudeAgentOptions:
+def zusatz_server_aus_claude_config(
+    config_pfad: Path | None = None,
+    namen: tuple[str, ...] | None = None,
+) -> dict[str, dict]:
+    """Übernimmt stdio-MCP-Server aus der Claude-Code-Config (user-Scope).
+
+    Konnect (KiCad-Anbindung, Spec §3.5) ist maschinenabhängig registriert —
+    auf dem Entwicklungs-NUC gar nicht, auf dem PC des Nutzers schon. Statt
+    Konnect fest zu verdrahten, lesen wir dieselbe Config, die auch die
+    Claude-Code-CLI selbst nutzt (``~/.claude.json``, user-Scope-Server unter
+    dem Top-Level-Schlüssel ``mcpServers``) und übernehmen, was zum
+    Namensfilter passt.
+
+    Standard-Namen: ``("konnect",)`` plus alle in ``MOTOR_ZUSATZ_SERVER``
+    (kommagetrennt) genannten. Vergleich case-insensitiv als Teilstring des
+    Servernamens — z. B. matcht "konnect" sowohl "konnect" als auch
+    "Konnect-KiCad". Nur stdio-Einträge (die einen "command"-Schlüssel
+    tragen) werden übernommen; http/sse-Einträge (Remote-MCP) werden
+    übersprungen, da ``mcp_servers`` in ``ClaudeAgentOptions`` dafür ein
+    anderes Eintragsformat braucht als hier gebaut wird.
+
+    Fehlt die Config-Datei, ist sie kein gültiges JSON oder ihr Wurzelwert
+    kein Dict, liefert die Funktion ein leeres Dict — nie eine Exception.
+    Das hält ``_optionen()`` netz-/dateisystemtolerant: eine kaputte oder
+    fehlende Config darf den Motor nicht am Start hindern.
+    """
+    pfad = config_pfad if config_pfad is not None else Path.home() / ".claude.json"
+    if namen is None:
+        env_namen = tuple(
+            n.strip().lower()
+            for n in os.environ.get("MOTOR_ZUSATZ_SERVER", "").split(",")
+            if n.strip()
+        )
+        namen = ("konnect",) + env_namen
+
+    try:
+        rohdaten = json.loads(pfad.read_text())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(rohdaten, dict):
+        return {}
+    server = rohdaten.get("mcpServers")
+    if not isinstance(server, dict):
+        return {}
+
+    treffer: dict[str, dict] = {}
+    for name, eintrag in server.items():
+        if not isinstance(eintrag, dict) or "command" not in eintrag:
+            continue  # kein stdio-Eintrag (z. B. http/sse) oder kaputter Eintrag
+        if not any(gesucht in name.lower() for gesucht in namen):
+            continue
+        treffer[name] = {
+            "command": eintrag["command"],
+            "args": eintrag.get("args", []),
+            "env": eintrag.get("env", {}),
+        }
+    return treffer
+
+
+def _optionen(
+    rueckfrage_callback, zusatz_server: dict[str, dict] | None = None
+) -> ClaudeAgentOptions:
     """Baut die ClaudeAgentOptions für die Cockpit-Werkstatt-Session.
 
-    Bindet die beiden MCP-Server (bestand, wissensschicht) als Stdio-Prozesse
-    im selben venv ein und erlaubt per Wildcard alle ihre Werkzeuge, ohne
-    andere Werkzeuge (Bash, WebSearch, …) automatisch freizugeben — die laufen
-    weiter über ``can_use_tool``.
+    Bindet die beiden Basis-MCP-Server (bestand, wissensschicht) als Stdio-
+    Prozesse im selben venv ein und erlaubt per Wildcard alle ihre Werkzeuge,
+    ohne andere Werkzeuge (Bash, WebSearch, …) automatisch freizugeben — die
+    laufen weiter über ``can_use_tool``.
+
+    ``zusatz_server`` (Default: Discovery aus ``~/.claude.json``, siehe
+    ``zusatz_server_aus_claude_config``) kommt bewusst als optionaler
+    Parameter statt fest verdrahteter Discovery — so bleibt ``_optionen()``
+    ohne Netz/Session/echte Config testbar (Tests reichen ein festes Dict
+    ein) und trotzdem ist der Produktionspfad (kein Argument) die echte
+    Discovery. Bei Namenskollision mit den Basis-Servern gewinnt die Basis
+    (kein Überschreiben von bestand/wissensschicht durch einen gleichnamigen
+    Zusatz-Server).
     """
+    if zusatz_server is None:
+        zusatz_server = zusatz_server_aus_claude_config()
+
     repo = str(Path(__file__).resolve().parents[3])
     umgebung = {"PYTHONPATH": repo}
+    basis = {
+        "bestand": {
+            "command": sys.executable,
+            "args": ["-m", "bestand.server"],
+            "env": {
+                **umgebung,
+                "BESTAND_DB": os.environ.get(
+                    "BESTAND_DB", str(Path.home() / ".hardware-copilot/bestand.db")
+                ),
+            },
+        },
+        "wissensschicht": {
+            "command": sys.executable,
+            "args": ["-m", "wissensschicht.server"],
+            "env": {
+                **umgebung,
+                "WISSENSSCHICHT_REPO": os.environ.get(
+                    "WISSENSSCHICHT_REPO", str(Path.home() / "projects/hardware-wissen")
+                ),
+            },
+        },
+    }
+    # Basis zuletzt gemischt, damit sie bei Namenskollision gewinnt.
+    mcp_servers = {**zusatz_server, **basis}
+    # Nur echte Zusatz-Namen (keine Kollisionen mit der Basis) bekommen eine
+    # eigene allowed_tools-Zeile — die Basis-Server haben ihre schon unten.
+    zusatz_namen = [name for name in zusatz_server if name not in basis]
+
+    system_prompt = SYSTEM_PROMPT
+    if zusatz_namen:
+        system_prompt += f" Zusätzlich verfügbar: {', '.join(zusatz_namen)}."
+        if any("konnect" in name.lower() for name in zusatz_namen):
+            system_prompt += " Nutze Konnect für KiCad-Schaltplan-Arbeit."
+
     return ClaudeAgentOptions(
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         cwd=repo,
         permission_mode="default",
         can_use_tool=rueckfrage_callback,
-        mcp_servers={
-            "bestand": {
-                "command": sys.executable,
-                "args": ["-m", "bestand.server"],
-                "env": {
-                    **umgebung,
-                    "BESTAND_DB": os.environ.get(
-                        "BESTAND_DB", str(Path.home() / ".hardware-copilot/bestand.db")
-                    ),
-                },
-            },
-            "wissensschicht": {
-                "command": sys.executable,
-                "args": ["-m", "wissensschicht.server"],
-                "env": {
-                    **umgebung,
-                    "WISSENSSCHICHT_REPO": os.environ.get(
-                        "WISSENSSCHICHT_REPO", str(Path.home() / "projects/hardware-wissen")
-                    ),
-                },
-            },
-        },
+        mcp_servers=mcp_servers,
         # Wildcard-Suffix "__*" ist die vom SDK verifizierte Form, um alle
         # Werkzeuge eines MCP-Servers freizugeben (siehe Report: SDK-Realität
         # vs. Brief — der Brief-Entwurf ohne "__*" hätte keine Wirkung gehabt).
@@ -161,7 +248,8 @@ def _optionen(rueckfrage_callback) -> ClaudeAgentOptions:
         # (teil_suchen über mcp__bestand__teil_suchen) löste keine Rückfrage
         # aus und lieferte den echten Bestandstreffer; das SDK selbst warnt
         # zudem, dass ein solcher allowed_tools-Eintrag can_use_tool umgeht.
-        allowed_tools=["mcp__bestand__*", "mcp__wissensschicht__*"],
+        allowed_tools=["mcp__bestand__*", "mcp__wissensschicht__*"]
+        + [f"mcp__{name}__*" for name in zusatz_namen],
     )
 
 
@@ -189,7 +277,24 @@ class ClaudeMotor:
         beide in dieselbe Queue; ``frage()`` liest sie nur noch aus, damit
         Rückfragen (die mitten in der Antwort auftauchen können) nicht auf
         das Ende der Übersetzung warten müssen.
+
+        Turn-scoped Queue: ``self._queue`` wird hier bei jedem Aufruf neu
+        gebunden statt (wie ursprünglich) einmalig in ``__init__``. Grund:
+        bricht ein Konsument die Iteration dieses Async-Generators vorzeitig
+        ab (z. B. ein WS-Client trennt die Verbindung mitten in der Antwort),
+        bleiben in der alten Queue u. U. noch ungelesene Ereignisse aus
+        diesem abgebrochenen Turn liegen. Ohne Neubindung würden sie beim
+        nächsten ``frage()``-Aufruf als vermeintliche Ereignisse *dieses*
+        neuen Turns ausgelesen — ein Leck über Turn-Grenzen hinweg.
+        Die alte Queue bleibt dabei niemandes Problem: der zugehörige
+        Übersetzer-Task des vorigen Turns wird im ``finally`` unten schon vor
+        Rückkehr aus dem vorigen ``frage()``-Aufruf gecancelt und awaited,
+        ist zum Zeitpunkt des nächsten Aufrufs also bereits beendet. Sollte
+        er (in einer Rennlage) doch noch einmal in die alte Queue schreiben,
+        landet das Ereignis in einem Objekt, auf das niemand mehr referenziert
+        — harmlos, es wird einfach nie gelesen und vom GC eingesammelt.
         """
+        self._queue = asyncio.Queue()
         await self._client.query(text)
         uebersetzer = asyncio.create_task(self._uebersetzer_lauf())
         try:

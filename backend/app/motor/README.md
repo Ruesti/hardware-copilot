@@ -35,3 +35,20 @@ hardware-wissen mit 38 Regeln):
 zeigen die Wirkung. Bewusst nicht Teil des Gates: der KiCad-Teil (Konnect) —
 auf dem Entwicklungsrechner ohne KiCad nicht prüfbar; die Anbindung ist ein
 `mcp_servers`-Eintrag bzw. `setting_sources` und folgt als eigener Schritt.
+
+## Konnect / weitere Werkzeuge
+
+Konnect (KiCad-Anbindung, Spec §3.5) ist maschinenabhängig als MCP-Server
+registriert — auf dem Entwicklungs-NUC gar nicht, auf dem PC des Nutzers
+schon. Statt Konnect fest zu verdrahten, liest `zusatz_server_aus_claude_config()`
+dieselbe Config, die auch die Claude-Code-CLI selbst nutzt (`~/.claude.json`,
+user-Scope-Server unter `mcpServers`) und übernimmt stdio-Einträge, deren
+Name den Namensfilter enthält (case-insensitiv als Teilstring). Standard-Filter:
+`"konnect"`, erweiterbar über die kommagetrennte Env `MOTOR_ZUSATZ_SERVER`
+(z. B. `MOTOR_ZUSATZ_SERVER=spezial,extra`). Gefundene Server werden `_optionen()`
+zu den Basis-Servern (`bestand`, `wissensschicht`) hinzugemischt — bei
+Namenskollision gewinnt die Basis — und ihre Werkzeuge per
+`mcp__<name>__*` in `allowed_tools` freigegeben; der System-Prompt bekommt
+dynamisch einen Zusatzsatz. Fehlt die Config oder ist Konnect nicht
+registriert, liefert die Discovery ein leeres Dict (kein Fehler) und der
+Motor läuft mit den zwei Basis-Servern weiter.
