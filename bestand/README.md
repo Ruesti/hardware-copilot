@@ -57,3 +57,21 @@ angelegt (2 × 10 µF verwechselbar, TPS54331, ESP32-S3, 100 nF). Befund:
 **Gate BESTANDEN.** Die Befüllung mit dem realen Bestand steht noch aus
 (Demo-DB wurde nicht übernommen); die produktive Einbindung zeigt auf
 `~/.hardware-copilot/bestand.db` und wird mit dem Merge dieses Branches aktiv.
+
+## Gate-Lauf E2 (2026-09-08)
+
+Ende-zu-Ende im echten Browser (headless Chromium via playwright-core) am
+gebauten Frontend (`vite preview`) gegen das laufende Cockpit-Backend
+(eigene Gate-DB; Wissens-Panel gegen das echte hardware-wissen-Repo mit
+38 Regeln). Befund:
+
+- Bestand: Teil über das Formular angelegt → erscheint in der Liste mit
+  Anlege-Meldung; „+1" hebt die Menge auf 251; Detail zeigt Leerzustände
+  („keine vermerkt" / „keine Preise erfasst") und den Leuchten-Knopf. ✓
+- Wissen: Regeln geladen, Stufe-Filter „vermutung" wirkt (belegte Regeln
+  verschwinden), Volltext trägt den ⚠-VERMUTUNG-Marker, Begründung, Quelle
+  („keine (Herleitung)"), Geltung und Ausnahmen. ✓
+- Lücken-Tab rendert das Protokoll. ✓
+
+**Gate BESTANDEN** — Spec-Kriterium wörtlich erfüllt: Bestand pflegen und
+Regeln stöbern komplett ohne Terminal.

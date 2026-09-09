@@ -1,48 +1,29 @@
-## Development Status
+## Hardware-Copilot
 
-Hardware Copilot is being built as a desktop-first engineering workbench for hardware-related design workflows.
+Hardware-Copilot ist das Cockpit einer KI-gestützten Elektronik-Werkstatt:
+Die App zeigt den Bauteile-Bestand (Mengen, Fächer, Preise mit Datum,
+Alternativen) und die Wissensbasis (belegte Regeln, Verified Blocks,
+Lücken-Protokoll). Die KI-Arbeit — Schaltung entwerfen über Konnect/KiCad,
+Regeln abfragen, Bestand pflegen — läuft über Claude Code mit den
+MCP-Servern `wissensschicht/` und `bestand/`; die Panels lesen dieselbe
+Datenschicht (`~/.hardware-copilot/bestand.db` + Wissens-Repo), nie den Chat.
+Entwurf: `docs/superpowers/specs/2026-09-08-cockpit-bestand-leuchtregal-design.md`.
 
-The current direction is not to let an LLM generate raw KiCad files directly.
-Instead, the intended pipeline is:
+### Cockpit starten
 
-`Chat -> Spec -> Draft -> Validation -> Export Model -> KiCad Generator`
+```bash
+# Backend (vom Repo-Root)
+./start_backend.sh
+# Frontend (zweites Terminal): Browser-Dev oder Tauri-Desktop
+npm run dev          # bzw. npm run tauri dev
+```
 
-### Current Baseline
+### Tests
 
-The project already includes a working technical foundation:
-
-- Tauri desktop shell
-- React + TypeScript + Vite frontend
-- Python + FastAPI backend
-- panel-based workbench UI
-- selection-driven inspector interaction
-- initial backend integration via `GET /project`
-- reproducible local development scripts
-
-So the project is already beyond pure mockup stage.
-
-See:
-- [`docs/status/current-baseline.md`](docs/status/current-baseline.md)
-
-### Current Active Phase
-
-**Phase 3.1 — Backend Model Hardening**
-
-Current focus:
-- introduce Pydantic models
-- stabilize API response structures
-- align backend models more closely with frontend types
-- prepare the backend for persistence and domain growth
-
-See:
-- [`docs/roadmap/phases.md`](docs/roadmap/phases.md)
-
-### Next Planned Steps
-
-- expand the backend API beyond `/project`
-- introduce SQLite persistence
-- build a real component library screen
-- expand validation logic
+```bash
+python -m pytest backend/tests/ bestand/tests/ wissensschicht/tests/
+npx vitest run && npm run build
+```
 - connect the chat workflow to structured technical draft generation
 
 ### Local Development
