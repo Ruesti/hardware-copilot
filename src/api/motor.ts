@@ -8,6 +8,7 @@ const RECONNECT_VERZOEGERUNG_MS = 2000;
 export class MotorVerbindung {
   private socket: WebSocket;
   private absichtlichGeschlossen = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly aufEreignis: (e: MotorEreignis) => void) {
     this.socket = this.verbinden();
@@ -20,7 +21,7 @@ export class MotorVerbindung {
     };
     socket.onclose = () => {
       if (!this.absichtlichGeschlossen) {
-        setTimeout(() => {
+        this.reconnectTimer = setTimeout(() => {
           this.socket = this.verbinden();
         }, RECONNECT_VERZOEGERUNG_MS);
       }
@@ -52,6 +53,10 @@ export class MotorVerbindung {
 
   schliessen(): void {
     this.absichtlichGeschlossen = true;
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.socket.close();
   }
 }
