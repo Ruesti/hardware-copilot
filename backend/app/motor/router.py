@@ -27,15 +27,25 @@ _motor: Any = None
 _verlauf: list[dict] = []
 _clients: set[WebSocket] = set()
 _laufende_frage: asyncio.Task | None = None
+# Schützt die Erzeugung+Start des Motors vor Doppel-Erzeugung bei parallelen
+# Aufrufen (z. B. gleichzeitiger Connect mehrerer Clients).
+_motor_lock: asyncio.Lock = asyncio.Lock()
 
 
 def zustand_zuruecksetzen() -> None:
-    """Setzt den kompletten Modulzustand zurück — nur für Tests."""
-    global _motor, _verlauf, _clients, _laufende_frage
+    """Setzt den kompletten Modulzustand zurück — nur für Tests.
+
+    Das Lock wird dabei neu angelegt statt nur freigegeben: ``asyncio.Lock``
+    bindet sich (je nach Python-Version) an den Event-Loop seiner ersten
+    Verwendung, und TestClient-Läufe können unterschiedliche Loops
+    benutzen. Ein neues Lock vermeidet Kollisionen zwischen Testläufen.
+    """
+    global _motor, _verlauf, _clients, _laufende_frage, _motor_lock
     _motor = None
     _verlauf = []
     _clients = set()
     _laufende_frage = None
+    _motor_lock = asyncio.Lock()
 
 
 async def _sende_an_alle(ereignis: dict) -> None:
@@ -67,28 +77,37 @@ async def _sende_verlauf_an_alle() -> None:
             _clients.discard(client)
 
 
-async def _motor_sicherstellen(empfaenger: WebSocket) -> bool:
+async def _motor_sicherstellen() -> bool:
     """Erzeugt und startet den Motor, falls noch keiner existiert.
 
-    Bei Startfehler geht ein "fertig"-Ereignis mit Fehlertext an den
-    übergebenen Empfänger (nicht an alle — ein Verbindungsfehler ist erst
-    mal Sache des gerade anfragenden Clients); der Motor bleibt ``None``,
-    damit ein späterer Versuch erneut starten kann.
+    Erzeugung+Start laufen unter ``_motor_lock`` mit Double-Check-Locking:
+    ohne das Lock könnten zwei parallele Aufrufe (z. B. gleichzeitiger
+    Connect zweier Clients) je einen Motor erzeugen und starten — der
+    unterlegene würde nie gestoppt und leakt seine gestartete SDK-Session.
+
+    Bei Startfehler geht ein "fertig"-Ereignis mit Fehlertext über
+    ``_sende_an_alle`` an Verlauf und alle Clients (nicht nur an den
+    übergebenen Empfänger — sonst zeigt ein Reconnect eine unbeantwortete
+    Frage); der Motor bleibt ``None``, damit ein späterer Versuch erneut
+    starten kann.
     """
     global _motor
     if _motor is not None:
         return True
-    kandidat = motor_fabrik()
-    try:
-        await kandidat.start()
-    except Exception as e:
-        with contextlib.suppress(Exception):
-            await empfaenger.send_json(
-                {"typ": "fertig", "fehler": str(e), "kosten_usd": None}
-            )
-        return False
-    _motor = kandidat
-    return True
+    async with _motor_lock:
+        if _motor is not None:
+            return True
+        kandidat = motor_fabrik()
+        try:
+            await kandidat.start()
+        except Exception as e:
+            with contextlib.suppress(Exception):
+                await _sende_an_alle(
+                    {"typ": "fertig", "fehler": str(e), "kosten_usd": None}
+                )
+            return False
+        _motor = kandidat
+        return True
 
 
 async def _frage_ausfuehren(text: str) -> None:
@@ -100,7 +119,7 @@ async def _frage_ausfuehren(text: str) -> None:
         await _sende_an_alle({"typ": "fertig", "fehler": str(e), "kosten_usd": None})
 
 
-async def _neustart(anfragende: WebSocket) -> None:
+async def _neustart() -> None:
     """Bricht eine laufende Frage ab, stoppt den Motor, leert den Verlauf,
     erzeugt per Fabrik einen neuen Motor und verteilt den leeren Verlauf."""
     global _motor, _verlauf, _laufende_frage
@@ -116,7 +135,7 @@ async def _neustart(anfragende: WebSocket) -> None:
         _motor = None
 
     _verlauf = []
-    await _motor_sicherstellen(anfragende)
+    await _motor_sicherstellen()
     await _sende_verlauf_an_alle()
 
 
@@ -128,7 +147,7 @@ async def motor_ws(websocket: WebSocket) -> None:
     _clients.add(websocket)
     try:
         await websocket.send_json({"typ": "verlauf", "ereignisse": list(_verlauf)})
-        await _motor_sicherstellen(websocket)
+        await _motor_sicherstellen()
 
         while True:
             nachricht = await websocket.receive_json()
@@ -142,7 +161,7 @@ async def motor_ws(websocket: WebSocket) -> None:
                     continue
                 text = nachricht.get("text", "")
                 _verlauf.append({"typ": "nutzer", "text": text})
-                if not await _motor_sicherstellen(websocket):
+                if not await _motor_sicherstellen():
                     continue
                 _laufende_frage = asyncio.create_task(_frage_ausfuehren(text))
 
@@ -159,7 +178,7 @@ async def motor_ws(websocket: WebSocket) -> None:
                     await _motor.abbrechen()
 
             elif typ == "neustart":
-                await _neustart(websocket)
+                await _neustart()
 
     except WebSocketDisconnect:
         pass

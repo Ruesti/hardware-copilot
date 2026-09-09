@@ -1,4 +1,7 @@
 """Motor-Router: Verlauf, Dialog-Roundtrip, neustart — mit Fake-Motor."""
+import asyncio
+
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
@@ -56,3 +59,29 @@ def test_neustart_leert_verlauf(monkeypatch):
         ws.receive_json(); ws.receive_json()
         ws.send_json({"typ": "neustart"})
         assert ws.receive_json() == {"typ": "verlauf", "ereignisse": []}
+
+
+@pytest.mark.asyncio
+async def test_motor_sicherstellen_erzeugt_unter_parallellast_nur_einen(monkeypatch):
+    """Race-Regressionstest: parallele _motor_sicherstellen()-Aufrufe dürfen
+    nur einen Motor erzeugen — sonst leakt der unterlegene Kandidat seine
+    gestartete SDK-Session (nie gestoppt, da nie in _motor landet)."""
+    erzeugt = []
+
+    class LangsamerFake(FakeMotor):
+        def __init__(self):
+            super().__init__()
+            erzeugt.append(self)
+
+        async def start(self):
+            await asyncio.sleep(0.05)
+
+    monkeypatch.setattr(motor_router, "motor_fabrik", LangsamerFake)
+    motor_router.zustand_zuruecksetzen()
+
+    a, b = await asyncio.gather(
+        motor_router._motor_sicherstellen(), motor_router._motor_sicherstellen()
+    )
+    assert a is True
+    assert b is True
+    assert len(erzeugt) == 1
