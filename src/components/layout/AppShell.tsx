@@ -1,4 +1,5 @@
 import { BestandPanel } from "../panels/BestandPanel";
+import { WissensPanel } from "../panels/WissensPanel";
 
 export type TabId = "bestand" | "wissen";
 
@@ -29,7 +30,7 @@ export function AppShell({ tab, onTabChange }: Props) {
         </nav>
       </header>
       <main style={{ flex: 1, minHeight: 0, display: "flex" }}>
-        {tab === "bestand" ? <BestandPanel /> : <div data-panel="wissen" />}
+        {tab === "bestand" ? <BestandPanel /> : <WissensPanel />}
       </main>
     </div>
   );
