@@ -52,6 +52,57 @@ class BestandsDienst:
         d["fach"] = f"{d['regal']}/{d['position']}" if d["regal"] else None
         return d
 
+
+    # -- Daten-Methoden für App-Backend ----------------------------------------
+
+    def suche_daten(self, suchbegriff: str = "", klasse: str | None = None) -> list[dict]:
+        """Rohdaten für das App-Backend: leerer Begriff = alle Teile."""
+        suchbegriff = suchbegriff.strip()
+        sql = ("SELECT t.id, t.bezeichnung, t.menge, t.klasse, t.hersteller_nr,"
+               " f.regal, f.position"
+               " FROM teile t LEFT JOIN faecher f ON f.id = t.fach_id")
+        klauseln, parameter = [], []
+        if suchbegriff:
+            maskiert = (suchbegriff.replace("\\", "\\\\")
+                        .replace("%", "\\%").replace("_", "\\_"))
+            muster = f"%{maskiert}%"
+            klauseln.append("(t.bezeichnung LIKE ? ESCAPE '\\'"
+                            " OR t.hersteller_nr LIKE ? ESCAPE '\\'"
+                            " OR t.eckdaten LIKE ? ESCAPE '\\')")
+            parameter += [muster, muster, muster]
+        if klasse:
+            klauseln.append("t.klasse = ?")
+            parameter.append(klasse)
+        if klauseln:
+            sql += " WHERE " + " AND ".join(klauseln)
+        zeilen = self._conn.execute(sql + " ORDER BY t.id", parameter).fetchall()
+        return [{"id": z["id"], "bezeichnung": z["bezeichnung"], "menge": z["menge"],
+                 "klasse": z["klasse"], "hersteller_nr": z["hersteller_nr"],
+                 "fach": f"{z['regal']}/{z['position']}" if z["regal"] else None}
+                for z in zeilen]
+
+    def teil_daten(self, teil_id: int) -> dict:
+        """Volltext-Rohdaten eines Teils inkl. Alternativen und Preisen."""
+        d = self._teil(teil_id)
+        d["alternativen"] = [
+            {"bezeichnung": z["bezeichnung"], "hersteller_nr": z["hersteller_nr"],
+             "hinweis": z["hinweis"], "datum": z["datum"]}
+            for z in self._conn.execute(
+                "SELECT * FROM alternativen WHERE teil_id = ? ORDER BY datum DESC",
+                (teil_id,))]
+        d["preise"] = [
+            {"quelle": z["quelle"], "preis_eur": z["preis_eur"],
+             "url": z["url"], "datum": z["datum"]}
+            for z in self._conn.execute(
+                "SELECT * FROM preis_cache WHERE teil_id = ? ORDER BY datum DESC",
+                (teil_id,))]
+        return d
+
+    def klassen_daten(self) -> list[str]:
+        """Sortierte, nichtleere Klassen im Bestand (Filter-Dropdown)."""
+        return [z["klasse"] for z in self._conn.execute(
+            "SELECT DISTINCT klasse FROM teile WHERE klasse != '' ORDER BY klasse")]
+
     # -- Werkzeuge ------------------------------------------------------------
 
     def anlegen(self, bezeichnung: str, menge: int, fach: str, klasse: str = "",
@@ -74,37 +125,17 @@ class BestandsDienst:
         suchbegriff = suchbegriff.strip()
         m = re.fullmatch(r"T-(\d+)", suchbegriff)
         if m:
-            teil_id = int(m.group(1))
-            alternativen = [dict(z) for z in self._conn.execute(
-                "SELECT * FROM alternativen WHERE teil_id = ? ORDER BY datum DESC",
-                (teil_id,))]
-            preise = [dict(z) for z in self._conn.execute(
-                "SELECT * FROM preis_cache WHERE teil_id = ? ORDER BY datum DESC",
-                (teil_id,))]
-            return fmt.detail(self._teil(teil_id), alternativen, preise)
+            d = self.teil_daten(int(m.group(1)))
+            return fmt.detail(d, d["alternativen"], d["preise"])
 
         if not suchbegriff:
             return "Suchbegriff ist leer — bitte Begriff oder Teil-ID (T-<n>) angeben."
 
-        maskiert = suchbegriff.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        muster = f"%{maskiert}%"
-        sql = ("SELECT t.id, t.bezeichnung, t.menge, t.klasse, f.regal, f.position"
-               " FROM teile t LEFT JOIN faecher f ON f.id = t.fach_id"
-               " WHERE (t.bezeichnung LIKE ? ESCAPE '\\' OR t.hersteller_nr LIKE ? ESCAPE '\\'"
-               "        OR t.eckdaten LIKE ? ESCAPE '\\')")
-        parameter: list = [muster, muster, muster]
-        if klasse:
-            sql += " AND t.klasse = ?"
-            parameter.append(klasse)
-        zeilen = self._conn.execute(sql + " ORDER BY t.id", parameter).fetchall()
-        if not zeilen:
+        daten = self.suche_daten(suchbegriff, klasse=klasse)
+        if not daten:
             return (f"Kein Teil gefunden für „{suchbegriff}“. "
                     "Neu erfassen: teil_anlegen.")
-        return "\n".join(fmt.kurzzeile({
-            "id": z["id"], "bezeichnung": z["bezeichnung"], "menge": z["menge"],
-            "klasse": z["klasse"],
-            "fach": f"{z['regal']}/{z['position']}" if z["regal"] else None,
-        }) for z in zeilen)
+        return "\n".join(fmt.kurzzeile(d) for d in daten)
 
     def menge_aendern(self, teil_id: int, delta: int) -> str:
         teil = self._teil(teil_id)
