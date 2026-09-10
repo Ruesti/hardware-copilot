@@ -1,15 +1,17 @@
-"""MCP-Layer: die sechs E1-Tools sind registriert und laufen gegen die DB."""
+"""MCP-Layer: die Tools sind registriert und laufen gegen die DB."""
 import asyncio
 
 from bestand import server
 
 
-def test_alle_sechs_tools_registriert():
+def test_genau_die_elf_tools_registriert():
     tools = asyncio.run(server.mcp.list_tools())
 
     namen = {t.name for t in tools}
-    assert {"teil_suchen", "teil_anlegen", "menge_aendern",
-            "alternative_vermerken", "preis_cachen", "fach_leuchten"} <= namen
+    assert namen == {"teil_suchen", "teil_anlegen", "menge_aendern",
+                     "alternative_vermerken", "preis_cachen", "fach_leuchten",
+                     "projekt_anlegen", "position_hinzufuegen",
+                     "position_verknuepfen", "projekt_zeigen", "projekt_abbuchen"}
 
 
 def test_anlegen_und_suchen_gegen_konfigurierte_db(tmp_path, monkeypatch):
