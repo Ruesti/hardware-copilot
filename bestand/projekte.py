@@ -83,7 +83,10 @@ class ProjektDienst:
 
     def position_verknuepfen(self, projekt_id: int, referenz: str,
                              teil_id: int) -> str:
-        self._projekt(projekt_id)
+        projekt = self._projekt(projekt_id)
+        if projekt["status"] == "gebaut":
+            raise BestandsFehler(
+                f"[P-{projekt_id}] ist abgeschlossen — keine Änderungen mehr.")
         self._position(projekt_id, referenz)
         self._teil_existiert(teil_id)
         self._conn.execute(
@@ -92,6 +95,58 @@ class ProjektDienst:
             (teil_id, projekt_id, referenz))
         self._conn.commit()
         return f"[P-{projekt_id}] {referenz} → [T-{teil_id}] verknüpft."
+
+    def abbuchen(self, projekt_id: int) -> str:
+        """Bucht alle verknüpften Positionen aus dem Bestand und schließt das
+        Projekt. Unterdeckung bei irgendeiner Position → nichts wird gebucht."""
+        projekt = self._projekt(projekt_id)
+        if projekt["status"] == "gebaut":
+            raise BestandsFehler(f"[P-{projekt_id}] ist bereits abgebucht.")
+        zeilen = self._conn.execute(
+            "SELECT * FROM projekt_positionen WHERE projekt_id = ? ORDER BY id",
+            (projekt_id,)).fetchall()
+        verknuepft = [dict(z) for z in zeilen if z["teil_id"] is not None]
+        uebersprungen = [z["referenz"] for z in zeilen if z["teil_id"] is None]
+
+        # Verfügbarkeit je Teil simulieren (mehrere Positionen können dasselbe
+        # Teil verbrauchen) — erst danach wird tatsächlich geschrieben.
+        verfuegbar: dict[int, int] = {}
+        luecken = []
+        for pos in verknuepft:
+            teil_id = pos["teil_id"]
+            if teil_id not in verfuegbar:
+                zeile = self._conn.execute(
+                    "SELECT menge FROM teile WHERE id = ?", (teil_id,)).fetchone()
+                verfuegbar[teil_id] = zeile["menge"]
+            rest = verfuegbar[teil_id]
+            if pos["menge"] > rest:
+                luecken.append(
+                    f"{pos['referenz']} braucht {pos['menge']}, da sind {rest}")
+            else:
+                verfuegbar[teil_id] = rest - pos["menge"]
+        if luecken:
+            raise BestandsFehler("Nicht genug Bestand: " + "; ".join(luecken))
+
+        datum = self._heute()
+        for pos in verknuepft:
+            self._conn.execute(
+                "UPDATE teile SET menge = menge - ? WHERE id = ?",
+                (pos["menge"], pos["teil_id"]))
+            self._conn.execute(
+                "INSERT INTO verbrauch (projekt_id, teil_id, menge, datum)"
+                " VALUES (?, ?, ?, ?)",
+                (projekt_id, pos["teil_id"], pos["menge"], datum))
+        self._conn.execute(
+            "UPDATE projekte SET status = 'gebaut' WHERE id = ?", (projekt_id,))
+        self._conn.commit()
+
+        anzahl = len(verknuepft)
+        einheit = "Position" if anzahl == 1 else "Positionen"
+        meldung = f"[P-{projekt_id}] abgebucht: {anzahl} {einheit}."
+        if uebersprungen:
+            meldung += (" Übersprungen (nicht zugeordnet): "
+                        f"{', '.join(uebersprungen)}.")
+        return meldung
 
     # -- Abgleich + Daten -------------------------------------------------------
 

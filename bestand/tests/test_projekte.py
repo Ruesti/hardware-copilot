@@ -57,3 +57,12 @@ def test_verknuepfen(dienst):
     dienst.position_hinzufuegen(1, "C1", "100nF")
 
     assert dienst.position_verknuepfen(1, "C1", 1) == "[P-1] C1 → [T-1] verknüpft."
+
+
+def test_verknuepfen_nach_abbuchen_ist_fehler(dienst):
+    dienst.anlegen("P")
+    dienst.position_hinzufuegen(1, "C1", "100nF", teil_id=1)
+    dienst.abbuchen(1)
+
+    with pytest.raises(BestandsFehler, match="abgeschlossen"):
+        dienst.position_verknuepfen(1, "C1", 1)
