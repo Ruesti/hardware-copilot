@@ -12,7 +12,6 @@ def test_verbinde_legt_alle_tabellen_an(tmp_path):
     tabellen = {z["name"] for z in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"teile", "faecher", "alternativen", "preis_cache"} <= tabellen
-    assert "projekte" not in tabellen  # E5+, bewusst nicht in E1
 
 
 def test_verbinde_ist_idempotent_und_erhaelt_daten(tmp_path):
@@ -56,3 +55,39 @@ def test_fremdschluessel_werden_erzwungen(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO alternativen (teil_id, bezeichnung, datum)"
                      " VALUES (999, 'X', '2026-09-08')")
+
+
+def test_verbinde_legt_projekt_tabellen_an(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+
+    tabellen = {z["name"] for z in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"projekte", "projekt_positionen", "verbrauch"} <= tabellen
+
+
+def test_referenz_ist_je_projekt_eindeutig(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+    conn.execute("INSERT INTO projekte (name, angelegt_am) VALUES ('P', '2026-09-10')")
+    conn.execute("INSERT INTO projekt_positionen (projekt_id, referenz, bezeichnung)"
+                 " VALUES (1, 'C3', 'X')")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO projekt_positionen (projekt_id, referenz, bezeichnung)"
+                     " VALUES (1, 'C3', 'Y')")
+
+
+def test_positions_menge_muss_positiv_sein(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+    conn.execute("INSERT INTO projekte (name, angelegt_am) VALUES ('P', '2026-09-10')")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO projekt_positionen (projekt_id, referenz,"
+                     " bezeichnung, menge) VALUES (1, 'C3', 'X', 0)")
+
+
+def test_projekt_status_nur_offen_oder_gebaut(tmp_path):
+    conn = verbinde(tmp_path / "bestand.db")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO projekte (name, status, angelegt_am)"
+                     " VALUES ('P', 'kaputt', '2026-09-10')")
