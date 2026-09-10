@@ -71,7 +71,8 @@ class ProjektDienst:
                 f"Referenz „{referenz}“ existiert schon in [P-{projekt_id}].")
         if teil_id is not None:
             self._teil_existiert(teil_id)
-        pins_json = json.dumps(pins) if pins is not None else None
+        pins_json = (json.dumps({str(k): str(v) for k, v in pins.items()})
+                     if pins is not None else None)
         self._conn.execute(
             "INSERT INTO projekt_positionen (projekt_id, referenz, bezeichnung,"
             " menge, klasse, baugruppe, teil_id, pins, kicad_symbol,"

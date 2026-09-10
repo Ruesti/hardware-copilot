@@ -1,16 +1,13 @@
+import type { PreisEintrag } from "./bestand";
+
+export type { PreisEintrag };
+
 export interface ProjektKurz {
   id: number;
   name: string;
   status: "offen" | "gebaut";
   positionen: number;
   fehlen: number;
-}
-
-export interface PreisEintrag {
-  preisEur: number;
-  quelle: string;
-  datum: string;
-  url: string;
 }
 
 export interface PositionZeile {
@@ -43,7 +40,7 @@ export interface ProjektDetail {
   id: number;
   name: string;
   beschreibung: string;
-  status: string;
+  status: "offen" | "gebaut";
   angelegtAm: string;
   positionen: PositionZeile[];
   zusammenfassung: Zusammenfassung;

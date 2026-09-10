@@ -66,3 +66,11 @@ def test_verknuepfen_nach_abbuchen_ist_fehler(dienst):
 
     with pytest.raises(BestandsFehler, match="abgeschlossen"):
         dienst.position_verknuepfen(1, "C1", 1)
+
+
+def test_pins_werden_zu_strings_normalisiert(dienst):
+    dienst.anlegen("P")
+    dienst.position_hinzufuegen(1, "U1", "IC", pins={"1": 3.3, 2: "GND"})
+
+    pins = dienst.projekt_daten(1)["positionen"][0]["pins"]
+    assert pins == {"1": "3.3", "2": "GND"}

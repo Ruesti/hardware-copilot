@@ -115,7 +115,8 @@ export function ChatPanel() {
         window.dispatchEvent(new CustomEvent("wissen-geaendert"));
       }
       if (e.typ === "werkzeug_fertig" &&
-          (e.name.includes("projekt") || e.name.includes("position"))) {
+          (e.name.startsWith("mcp__bestand__projekt") ||
+           e.name.startsWith("mcp__bestand__position"))) {
         window.dispatchEvent(new CustomEvent("projekt-geaendert"));
       }
     }, setVerbunden);
