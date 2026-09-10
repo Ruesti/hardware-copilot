@@ -94,6 +94,20 @@ describe("ChatPanel", () => {
     window.removeEventListener("wissen-geaendert", spy);
   });
 
+  it("werkzeug_fertig mit projekt/position-Werkzeug feuert projekt-geaendert", () => {
+    render(<ChatPanel />);
+    const spy = vi.fn();
+    window.addEventListener("projekt-geaendert", spy);
+
+    feuere({ typ: "werkzeug_gestartet", id: "w-3", name: "mcp__bestand__position_hinzufuegen",
+             anzeige: "bestand: position_hinzufuegen" });
+    feuere({ typ: "werkzeug_fertig", id: "w-3", name: "mcp__bestand__position_hinzufuegen",
+             fehler: false });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    window.removeEventListener("projekt-geaendert", spy);
+  });
+
   it("laeuftAusVerlauf erkennt laufende Antwort", () => {
     expect(laeuftAusVerlauf([{ typ: "nutzer", text: "Hi" }])).toBe(true);
     expect(
