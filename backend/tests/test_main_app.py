@@ -14,6 +14,7 @@ def test_nur_cockpit_routen():
     pfade = set(app.openapi()["paths"])
 
     assert any(p.startswith("/bestand") for p in pfade)
+    assert any(p.startswith("/projekte") for p in pfade)
     assert any(p.startswith("/wissen") for p in pfade)
     for alt in ("/chat", "/projects", "/draft-circuit", "/validation",
                 "/datasheet", "/usage", "/refresh-design"):
