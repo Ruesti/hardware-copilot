@@ -12,6 +12,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
+from .projekte import ProjektDienst
 from .service import BestandsDienst, BestandsFehler
 
 mcp = MCPServer("bestand")
@@ -20,6 +21,11 @@ mcp = MCPServer("bestand")
 def _dienst() -> BestandsDienst:
     pfad = os.environ.get("BESTAND_DB", str(Path.home() / ".hardware-copilot/bestand.db"))
     return BestandsDienst(pfad, regal_url=os.environ.get("BESTAND_REGAL_URL"))
+
+
+def _projekt_dienst() -> ProjektDienst:
+    pfad = os.environ.get("BESTAND_DB", str(Path.home() / ".hardware-copilot/bestand.db"))
+    return ProjektDienst(pfad)
 
 
 def _antwort(aufruf) -> str:
@@ -89,6 +95,61 @@ def fach_leuchten(teil_id: int, farbe: str = "gruen", dauer_s: int = 30) -> str:
     „wo liegt das Teil?“."""
     return _antwort(lambda: _dienst().fach_leuchten(
         teil_id, farbe=farbe, dauer_s=dauer_s))
+
+
+@mcp.tool()
+def projekt_anlegen(name: str, beschreibung: str = "") -> str:
+    """Neues Projekt (Schaltungsentwurf/Baugruppe) anlegen — der Rahmen für
+    seine Stückliste. Positionen kommen danach über position_hinzufuegen dazu."""
+    return _antwort(lambda: _projekt_dienst().anlegen(name, beschreibung=beschreibung))
+
+
+@mcp.tool()
+def position_hinzufuegen(projekt_id: int, referenz: str, bezeichnung: str,
+                         menge: int = 1, klasse: str = "",
+                         teil_id: int | None = None, baugruppe: str = "",
+                         pins: dict | None = None, kicad_symbol: str = "",
+                         kicad_footprint: str = "", notiz: str = "") -> str:
+    """Stückliste-Position zu einem Projekt hinzufügen.
+
+    referenz: Bezeichner wie im Schaltplan, z. B. "C3", "U1" — muss je Projekt
+    eindeutig sein. pins: Pin→Netz-Zuordnung (z. B. {"1": "GND", "2": "VCC"}),
+    fürs spätere KiCad gedacht. klasse: möglichst aus dem Achsenkatalog des
+    Wissens-Repos wählen. teil_id: verknüpft die Position sofort mit einem
+    Bestandsteil (T-<id>) — alternativ später über position_verknuepfen.
+    kicad_symbol/kicad_footprint: mitgeben, sobald bekannt, für die spätere
+    KiCad-Brücke."""
+    return _antwort(lambda: _projekt_dienst().position_hinzufuegen(
+        projekt_id, referenz, bezeichnung, menge=menge, klasse=klasse,
+        teil_id=teil_id, baugruppe=baugruppe, pins=pins,
+        kicad_symbol=kicad_symbol, kicad_footprint=kicad_footprint,
+        notiz=notiz))
+
+
+@mcp.tool()
+def position_verknuepfen(projekt_id: int, referenz: str, teil_id: int) -> str:
+    """Bestehende Stückliste-Position nachträglich mit einem Bestandsteil
+    (T-<id>) verknüpfen, z. B. nachdem das passende Teil gefunden wurde."""
+    return _antwort(lambda: _projekt_dienst().position_verknuepfen(
+        projekt_id, referenz, teil_id))
+
+
+@mcp.tool()
+def projekt_zeigen(projekt_id: int) -> str:
+    """Stückliste eines Projekts mit Bestandsabgleich anzeigen: je Baugruppe
+    gruppierte Positionen, ob das Teil im Bestand da/knapp/fehlt ist, Fach
+    und — bei Fehlteilen — Preis (Stand vom Datum) und geschätzte Kosten."""
+    return _antwort(lambda: _projekt_dienst().zeigen(projekt_id))
+
+
+@mcp.tool()
+def projekt_abbuchen(projekt_id: int) -> str:
+    """Alle mit einem Bestandsteil verknüpften Positionen aus dem Bestand
+    abbuchen und das Projekt abschließen. Reicht der Bestand für irgendeine
+    Position nicht, wird nichts gebucht (Unterdeckungs-Schutz) — die Meldung
+    nennt die fehlenden Referenzen und Mengen. Nicht verknüpfte Positionen
+    werden übersprungen und in der Meldung genannt."""
+    return _antwort(lambda: _projekt_dienst().abbuchen(projekt_id))
 
 
 if __name__ == "__main__":

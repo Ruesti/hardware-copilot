@@ -31,6 +31,16 @@ Optional, sobald das Leucht-Regal existiert (Etappe E3):
 | `preis_cachen` | Recherchierten Preis mit Quelle ablegen; Datum setzt der Server. |
 | `fach_leuchten` | Regal-Fach aufleuchten lassen; ohne Regal nur Fach-Auskunft. |
 
+## Tools — Projekte/Stückliste (Spec §2, Etappe E5)
+
+| Tool | Zweck |
+|---|---|
+| `projekt_anlegen` | Neues Projekt (Schaltungsentwurf/Baugruppe) anlegen. |
+| `position_hinzufuegen` | Stückliste-Position hinzufügen; Referenz wie im Schaltplan (C3, U1), `pins` = Pin→Netz fürs spätere KiCad, `klasse` aus dem Achsenkatalog. |
+| `position_verknuepfen` | Position nachträglich mit einem Bestandsteil (T-<id>) verknüpfen. |
+| `projekt_zeigen` | Stückliste mit Bestandsabgleich (da/knapp/fehlt) und Fehlteile-Kosten. |
+| `projekt_abbuchen` | Verknüpfte Positionen abbuchen und Projekt abschließen; Unterdeckung bricht komplett ab. |
+
 ## Tests
 
 ```bash

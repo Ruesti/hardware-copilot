@@ -40,7 +40,12 @@ SYSTEM_PROMPT = (
     "Hinweis-Stufen prüfen, Lücken melden/auflisten, Blöcke aufzeichnen/"
     "suchen). Gib Regel-Blöcke aus der Wissensschicht wörtlich wieder, "
     "stufe ihre Sicherheitsstufe niemals hoch und entferne den Hinweis "
-    "'⚠ VERMUTUNG' niemals. Antworte kompakt und auf Deutsch."
+    "'⚠ VERMUTUNG' niemals. Antworte kompakt und auf Deutsch. "
+    "Beim Schaltungsentwurf lege ein Projekt an (projekt_anlegen) und lege "
+    "jede gewählte Komponente als Position mit Referenz, Baugruppe und "
+    "Pin-Netzen ab (position_hinzufuegen); verknüpfe Bestands-Teile "
+    "(teil_id bzw. position_verknuepfen); liefere kicad_symbol/"
+    "kicad_footprint mit, wenn bekannt."
 )
 
 
