@@ -85,3 +85,17 @@ gebauten Frontend (`vite preview`) gegen das laufende Cockpit-Backend
 
 **Gate BESTANDEN** — Spec-Kriterium wörtlich erfüllt: Bestand pflegen und
 Regeln stöbern komplett ohne Terminal.
+
+## Gate-Lauf E5 (2026-09-10)
+
+Ende-zu-Ende mit echter Claude-Session im headless Browser: Chat-Anfrage
+„Lege ein Projekt Blink-Board an …" → KI nutzte `projekt_anlegen` und
+`position_hinzufuegen` (U1/C1/C2 mit Bestands-Verknüpfung und Pin-Netzen,
+R1 unverknüpft). Projekt-Tab zeigte die BOM gruppiert (MCU/Sonstiges/
+Versorgung) mit Status-Badges (da/nicht zugeordnet), Händlerpreisen mit
+„Stand vom" und der Kopfzeile „3 von 4 Positionen im Bestand · Fehlteile
+≈ 0,00 € · 1 ohne Preis". „Als gebaut abbuchen" über die UI: „[P-1]
+abgebucht: 3 Positionen.", Status → gebaut, Bestand-Tab zeigte 248/1.
+
+**Gate BESTANDEN** — Chat erzeugt Projekt mit vollständiger Stückliste,
+Tab zeigt Abgleich + Summe, Abbuchen reduziert Bestand und loggt Verbrauch.
