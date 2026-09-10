@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WissensPanel } from "./WissensPanel";
@@ -55,6 +55,22 @@ describe("WissensPanel", () => {
     const link = await screen.findByText("https://example.com/x.pdf");
     expect(link.closest("a")).not.toBeNull();
     expect(link.closest("a")).toHaveAttribute("href", "https://example.com/x.pdf");
+  });
+
+  it("wissen-geaendert lädt die Regeln des aktiven Sub-Tabs neu", async () => {
+    mockFetch({ "/wissen/regeln/R-008": VOLL, "/wissen/regeln": REGELN,
+                "/wissen/klassen": ["schaltregler"] });
+    render(<WissensPanel />);
+    await screen.findByText(/Hot Loop klein halten/);
+
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    const zaehleRegelnAufrufe = () =>
+      fetchMock.mock.calls.filter((c) => String(c[0]).includes("/wissen/regeln?")).length;
+    const vorher = zaehleRegelnAufrufe();
+
+    act(() => { window.dispatchEvent(new CustomEvent("wissen-geaendert")); });
+
+    await waitFor(() => expect(zaehleRegelnAufrufe()).toBeGreaterThan(vorher));
   });
 
   it("wechselt zur Lücken-Tabelle", async () => {

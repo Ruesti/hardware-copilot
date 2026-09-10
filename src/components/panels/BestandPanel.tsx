@@ -45,6 +45,16 @@ export function BestandPanel() {
     fetchBestandKlassen().then(setKlassen).catch((e) => setFehler(e.message));
   }, []);
 
+  // Live-Spiegel: ChatPanel meldet Bestand-Änderungen aus Werkzeugaufrufen.
+  useEffect(() => {
+    const h = () => {
+      laden();
+      fetchBestandKlassen().then(setKlassen).catch(() => {});
+    };
+    window.addEventListener("bestand-geaendert", h);
+    return () => window.removeEventListener("bestand-geaendert", h);
+  }, [laden]);
+
   const detailLaden = (id: number) =>
     fetchTeil(id)
       .then((t) => { setAuswahl(t); setFehler(""); })
