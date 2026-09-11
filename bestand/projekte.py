@@ -193,12 +193,13 @@ class ProjektDienst:
             pos["alle_preise"] = []
             return pos
         teil = self._conn.execute(
-            "SELECT t.menge, f.regal, f.position FROM teile t"
+            "SELECT t.menge, t.hersteller_nr, f.regal, f.position FROM teile t"
             " LEFT JOIN faecher f ON f.id = t.fach_id WHERE t.id = ?",
             (teil_id,)).fetchone()
         vorrat = teil["menge"]
         fach = f"{teil['regal']}/{teil['position']}" if teil["regal"] else None
-        pos["bestand"] = {"menge": vorrat, "fach": fach}
+        pos["bestand"] = {"menge": vorrat, "fach": fach,
+                          "hersteller_nr": teil["hersteller_nr"]}
         if vorrat >= pos["menge"]:
             pos["status"] = "da"
         elif vorrat > 0:

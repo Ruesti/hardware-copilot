@@ -36,6 +36,10 @@ def test_status_ableitung(aufbau):
     assert _pos(daten, "R7")["status"] == "nicht_zugeordnet"
 
 
+def test_bestand_traegt_herstellernummer(aufbau):
+    assert _pos(aufbau.projekt_daten(1), "C3")["bestand"]["hersteller_nr"] == ""
+
+
 def test_guenstigster_preis_gewinnt(aufbau):
     preis = _pos(aufbau.projekt_daten(1), "C3")["preis"]
 
