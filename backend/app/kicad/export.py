@@ -27,14 +27,30 @@ _PCB_HINWEIS_KEIN_PCBNEW = (
 
 
 def projekt_slug(name: str) -> str:
-    """Dateisystem-sicherer Ordnername aus dem Projektnamen."""
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "projekt"
+    """Dateisystem-sicherer Ordnername aus dem Projektnamen.
+
+    Fällt auf "projekt" zurück, wenn das Ergebnis leer ist oder nur aus
+    Punkten besteht (".", "..", "..." …) — solche Namen würden sonst als
+    Verzeichnis-Navigation gelesen und könnten aus `ausgabe_basis` ausbrechen
+    (z. B. Projektname "..!!" → nach dem Entfernen der Sonderzeichen "..").
+    """
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-")
+    if not slug or not slug.strip("."):
+        return "projekt"
+    return slug
 
 
 def run_export(projekt: dict, wissens_repo: Path, ausgabe_basis: Path,
                symbols_dir: Path = DEFAULT_SYMBOLS_DIR, heute: str = "") -> dict:
     slug = projekt_slug(projekt["name"])
+    ausgabe_basis_aufgeloest = ausgabe_basis.resolve()
     ordner = ausgabe_basis / slug
+    ordner_aufgeloest = ordner.resolve()
+    if (ordner_aufgeloest == ausgabe_basis_aufgeloest
+            or ausgabe_basis_aufgeloest not in ordner_aufgeloest.parents):
+        raise ValueError(
+            f"Projekt-Slug {slug!r} bricht aus der Export-Basis "
+            f"{ausgabe_basis_aufgeloest} aus — Export abgebrochen.")
     ordner.mkdir(parents=True, exist_ok=True)
 
     modell = baue_export_modell(projekt, load_library())

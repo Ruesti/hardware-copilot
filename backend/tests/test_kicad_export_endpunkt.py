@@ -13,6 +13,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from backend.app.kicad import export as kicad_export
+from backend.app.kicad.export import projekt_slug
 from backend.app.routers.projekte import router
 from bestand.projekte import ProjektDienst
 from bestand.service import BestandsDienst
@@ -136,3 +138,66 @@ def test_leeres_modell_ohne_schaltplan_aber_mit_anleitung(client, tmp_path):
     assert Path(daten["anleitung"]).exists()
     assert daten["report"]["uebernommen"] == 0
     assert daten["report"]["uebersprungen"][0]["referenz"] == "R7"
+
+
+# -- Review-Fix: Pfadausbruch via Slug (Medium, path-traversal) -------------
+
+def test_slug_haertet_gegen_pfadausbruch():
+    """Namen, die sich auf ".."/"." reduzieren oder nur aus Sonderzeichen
+    bestehen, dürfen keinen Verzeichnis-Navigations-Ordnernamen ergeben."""
+    assert projekt_slug("..") == "projekt"
+    assert projekt_slug(".") == "projekt"
+    assert projekt_slug("...") == "projekt"
+    assert projekt_slug("") == "projekt"
+    assert projekt_slug("!!!") == "projekt"
+    # ".." bleibt übrig, nachdem die Regex die beiden "!" entfernt hat —
+    # genau der vom Reviewer end-to-end reproduzierte Fall.
+    assert projekt_slug("..!!") == "projekt"
+    assert projekt_slug("Blink-Board") == "Blink-Board"
+
+
+def test_export_boeser_projektname_bleibt_im_export_basisordner(client, tmp_path):
+    """End-to-end-Reproduktion des Reviewer-Fundes: Projektname "..!!" darf
+    den Export nicht aus HARDWARE_COPILOT_EXPORTE ausbrechen lassen (bei
+    Default-Konfiguration würde das direkt ins Home schreiben)."""
+    p = ProjektDienst(tmp_path / "bestand.db", heute=lambda: "2026-09-11")
+    p.anlegen("..!!")
+    p.position_hinzufuegen(2, "C1", "100nF", kicad_symbol="Device:C",
+                           pins={"1": "GND", "2": "+3V3"})
+
+    r = client.post("/projekte/2/kicad-export")
+
+    assert r.status_code == 200
+    daten = r.json()
+    basis = (tmp_path / "exporte").resolve()
+    ordner = Path(daten["ordner"]).resolve()
+    assert ordner == basis / "projekt"
+    assert basis in ordner.parents
+
+
+def test_run_export_sicherheitsnetz_greift_trotz_geaenderter_slug_funktion(
+        tmp_path, monkeypatch):
+    """Sicherheitsnetz in `run_export`: selbst wenn `projekt_slug` (z. B.
+    durch einen künftigen Bug) wieder ".." liefern würde, bricht der Export
+    kontrolliert ab, statt den Basisordner zu verlassen."""
+    monkeypatch.setattr(kicad_export, "projekt_slug", lambda name: "..")
+    projekt = {"id": 1, "name": "Boese", "positionen": []}
+
+    with pytest.raises(ValueError, match="bricht aus der Export-Basis"):
+        kicad_export.run_export(projekt, tmp_path / "wissen", tmp_path / "exporte")
+
+
+# -- Review-Fix: ungetesteter pcbnew-Hinweis (Medium, test-coverage) --------
+
+def test_pcb_hinweis_wenn_pcbnew_fehlt(client, monkeypatch):
+    """Diese Maschine hat echtes pcbnew installiert — ohne Monkeypatch würde
+    der `pcb_hinweis`-Zweig nie ausgelöst. Text exakt wie im Router (camelCase
+    `pcbHinweis`) und im Orchestrator geprüft."""
+    monkeypatch.setattr(kicad_export, "pcbnew_available", lambda: False)
+
+    daten = client.post("/projekte/1/kicad-export").json()
+
+    assert daten["pcb"] is None
+    assert daten["report"]["pcbHinweis"] == (
+        "pcbnew (KiCad-Python) nicht gefunden — Schaltplan und Anleitung "
+        "wurden erzeugt.")
