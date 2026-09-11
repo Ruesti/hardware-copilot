@@ -80,3 +80,21 @@ def test_stub_wires_present(charger_model):
     labels = re.findall(r'\(label "', text)
     assert len(wires) == len(labels), "jeder Label-Punkt hat genau einen Stummel-Draht"
     assert len(wires) > 0
+
+
+# -- Review-Fix: Geister-Pin verschwindet spurlos (Important, silent-failure) --
+
+@requires_kicad
+def test_geisterpin_bekommt_warnung_statt_stillem_verschwinden(charger_model):
+    """Pin-Nummer im `pins`-Feld, die es im Symbol nicht gibt (z. B. Tippfehler
+    von der LLM-Erzeugung), darf nicht spurlos verschwinden — C1 (Device:C, nur
+    Pin 1+2) bekommt hier zusätzlich Pin "3"; der Schaltplan entsteht trotzdem,
+    aber es muss eine Warnung geben."""
+    charger_model.instances[1].pin_nets["3"] = "GEISTER"  # C1: Device:C hat nur 1+2
+
+    text = write_schematic(charger_model, KICAD_SYMBOLS, "demo")
+
+    assert charger_model.warnings == [
+        "C1: Pin 3 existiert nicht im Symbol Device:C — Netz ‚GEISTER' nicht verbunden."
+    ]
+    assert text.startswith("(kicad_sch (version 20250114)")

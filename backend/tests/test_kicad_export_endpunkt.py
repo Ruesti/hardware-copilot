@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.app.kicad import export as kicad_export
-from backend.app.kicad.export import projekt_slug
+from backend.app.kicad.export import projekt_ordner, projekt_slug
 from backend.app.routers.projekte import router
 from bestand.projekte import ProjektDienst
 from bestand.service import BestandsDienst
@@ -171,20 +171,119 @@ def test_export_boeser_projektname_bleibt_im_export_basisordner(client, tmp_path
     daten = r.json()
     basis = (tmp_path / "exporte").resolve()
     ordner = Path(daten["ordner"]).resolve()
-    assert ordner == basis / "projekt"
+    # Ordnername trägt jetzt das ID-Präfix (Final-Review-Fix Slug-Kollision).
+    assert ordner == basis / "p2-projekt"
     assert basis in ordner.parents
 
 
-def test_run_export_sicherheitsnetz_greift_trotz_geaenderter_slug_funktion(
+def test_run_export_sicherheitsnetz_greift_trotz_geaenderter_ordner_funktion(
         tmp_path, monkeypatch):
-    """Sicherheitsnetz in `run_export`: selbst wenn `projekt_slug` (z. B.
+    """Sicherheitsnetz in `run_export`: selbst wenn `projekt_ordner` (z. B.
     durch einen künftigen Bug) wieder ".." liefern würde, bricht der Export
     kontrolliert ab, statt den Basisordner zu verlassen."""
-    monkeypatch.setattr(kicad_export, "projekt_slug", lambda name: "..")
+    monkeypatch.setattr(kicad_export, "projekt_ordner", lambda projekt_id, name: "..")
     projekt = {"id": 1, "name": "Boese", "positionen": []}
 
     with pytest.raises(ValueError, match="bricht aus der Export-Basis"):
         kicad_export.run_export(projekt, tmp_path / "wissen", tmp_path / "exporte")
+
+
+# -- Review-Fix: Slug-Kollision (Minor, correctness) ------------------------
+
+def test_projekt_ordner_praefixt_mit_id_gegen_slug_kollision():
+    """Reviewer-Fund: "Board!" und "Board?" ergeben denselben Namens-Slug
+    ("Board") — der Ordnername muss trotzdem je Projekt eindeutig sein."""
+    assert projekt_ordner(1, "Board!") == "p1-Board"
+    assert projekt_ordner(2, "Board?") == "p2-Board"
+    assert projekt_ordner(1, "Board!") != projekt_ordner(2, "Board?")
+
+
+def test_slug_kollision_landet_in_verschiedenen_ordnern_end_to_end(client, tmp_path):
+    """End-to-end: zwei Projekte mit kollidierendem Namens-Slug überschreiben
+    sich nicht mehr, und `kicad-anleitung` liefert je Projekt seine eigene
+    Anleitung statt der des jeweils anderen."""
+    p = ProjektDienst(tmp_path / "bestand.db", heute=lambda: "2026-09-11")
+    p.anlegen("Board!")
+    p.position_hinzufuegen(2, "C1", "100nF", kicad_symbol="Device:C",
+                           pins={"1": "GND", "2": "+3V3"})
+    p.anlegen("Board?")
+    p.position_hinzufuegen(3, "C1", "220nF", kicad_symbol="Device:C",
+                           pins={"1": "GND", "2": "+3V3"})
+
+    d2 = client.post("/projekte/2/kicad-export").json()
+    d3 = client.post("/projekte/3/kicad-export").json()
+
+    assert d2["ordner"] != d3["ordner"]
+    assert Path(d2["ordner"]).name == "p2-Board"
+    assert Path(d3["ordner"]).name == "p3-Board"
+
+    a2 = client.get("/projekte/2/kicad-anleitung")
+    a3 = client.get("/projekte/3/kicad-anleitung")
+    assert a2.status_code == 200 and a3.status_code == 200
+    assert "Board!" in a2.text and "Board!" not in a3.text
+    assert "Board?" in a3.text and "Board?" not in a2.text
+
+
+# -- Review-Fix: ungültiges kicad_symbol crasht als 500 (Important, silent-
+# failure / correctness) ----------------------------------------------------
+
+def test_export_unladbares_symbol_landet_in_uebersprungen_statt_500(client, tmp_path):
+    """Reviewer-Repro: kicad_symbol "Device:GibtEsNichtXyz" (Bibliothek
+    "Device" existiert, Symbol nicht) darf den Export nicht als 500 abbrechen
+    — die Position landet mit Grund in `uebersprungen`, die übrigen
+    Positionen und die Anleitung werden trotzdem erzeugt."""
+    p = ProjektDienst(tmp_path / "bestand.db", heute=lambda: "2026-09-11")
+    p.anlegen("Geister-Symbol")
+    p.position_hinzufuegen(2, "U1", "Ghost", kicad_symbol="Device:GibtEsNichtXyz")
+    p.position_hinzufuegen(2, "C1", "100nF", kicad_symbol="Device:C",
+                           pins={"1": "GND", "2": "+3V3"})
+
+    r = client.post("/projekte/2/kicad-export")
+
+    assert r.status_code == 200
+    daten = r.json()
+    eintrag = next(u for u in daten["report"]["uebersprungen"] if u["referenz"] == "U1")
+    assert eintrag["grund"] == (
+        "Symbol ‚Device:GibtEsNichtXyz' nicht in der KiCad-Bibliothek "
+        "gefunden — kicad_symbol prüfen.")
+    assert daten["schaltplan"] is not None and Path(daten["schaltplan"]).exists()
+    assert Path(daten["anleitung"]).exists()
+    assert daten["report"]["uebernommen"] == 1
+
+
+def test_export_symbol_ohne_doppelpunkt_landet_in_uebersprungen(client, tmp_path):
+    """Reviewer-Repro: kicad_symbol "DeviceC" (kein Doppelpunkt) darf den
+    Export nicht als 500 (ValueError beim Unpacking) abbrechen."""
+    p = ProjektDienst(tmp_path / "bestand.db", heute=lambda: "2026-09-11")
+    p.anlegen("Kein-Doppelpunkt")
+    p.position_hinzufuegen(2, "R1", "10k", kicad_symbol="DeviceC")
+
+    r = client.post("/projekte/2/kicad-export")
+
+    assert r.status_code == 200
+    daten = r.json()
+    assert daten["report"]["uebersprungen"][0]["referenz"] == "R1"
+    assert "kicad_symbol prüfen" in daten["report"]["uebersprungen"][0]["grund"]
+    # Keine ladbare Position übrig -> kein Schaltplan, Anleitung trotzdem da.
+    assert daten["schaltplan"] is None
+    assert Path(daten["anleitung"]).exists()
+
+
+def test_export_router_faengt_unerwartete_ausnahme_als_500_ab(client, monkeypatch):
+    """Sicherheitsnetz im Router: falls `run_export` dennoch eine Ausnahme
+    wirft (z. B. das Slug-Sicherheitsnetz oder ein unvorhergesehener Fehler),
+    liefert der Endpunkt eine deutsche Meldung statt rohem Traceback/500 ohne
+    JSON-Body."""
+    def kaputt(*a, **kw):
+        raise ValueError("Projekt-Ordner 'x' bricht aus der Export-Basis aus.")
+    monkeypatch.setattr(kicad_export, "run_export", kaputt)
+
+    r = client.post("/projekte/1/kicad-export")
+
+    assert r.status_code == 500
+    assert r.json()["detail"] == (
+        "KiCad-Export fehlgeschlagen: Projekt-Ordner 'x' bricht aus der "
+        "Export-Basis aus.")
 
 
 # -- Review-Fix: ungetesteter pcbnew-Hinweis (Medium, test-coverage) --------

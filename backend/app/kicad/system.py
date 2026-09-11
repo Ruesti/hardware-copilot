@@ -2,6 +2,8 @@
 
 Die App (Tauri) und dieses Backend laufen auf demselben Rechner — der Status
 beschreibt also die Maschine, auf der auch exportiert und geöffnet wird.
+
+Portiert aus feat/kicad-export; in E6 noch unverdrahtet.
 """
 from __future__ import annotations
 

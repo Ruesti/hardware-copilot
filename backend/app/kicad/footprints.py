@@ -4,6 +4,8 @@ Deterministisch: Gehäusenamen werden normalisiert und gegen eine kuratierte
 Tabelle aufgelöst; jeder Tabellenwert wird per Test gegen die installierte
 KiCad-Footprint-Bibliothek geprüft. Kein Treffer → leerer Footprint (ehrlich
 offen statt geraten), sichtbar im Export-Report.
+
+Portiert aus feat/kicad-export; in E6 noch unverdrahtet.
 """
 from __future__ import annotations
 

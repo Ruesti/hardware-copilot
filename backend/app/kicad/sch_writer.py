@@ -66,6 +66,11 @@ def write_schematic(model: ExportModel, symbols_dir: Path, project_name: str) ->
     driven_nets: set[str] = set()
     for inst in model.instances:
         pins = {p.number: p for p in pins_by_libid[inst.lib_id]}
+        for geister_pin in sorted(set(inst.pin_nets) - set(pins)):
+            model.warnings.append(
+                f"{inst.ref}: Pin {geister_pin} existiert nicht im Symbol "
+                f"{inst.lib_id} — Netz ‚{inst.pin_nets[geister_pin]}' nicht "
+                "verbunden.")
         for pin_no, net in inst.pin_nets.items():
             net_counts[net] += 1
             etype = pins[pin_no].etype if pin_no in pins else "passive"

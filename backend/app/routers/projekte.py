@@ -183,16 +183,19 @@ def projekt_abbuchen(projekt_id: int):
              response_model_by_alias=True)
 def kicad_export_endpunkt(projekt_id: int):
     projekt = _projekt_oder_404(projekt_id)
-    return kicad_export.run_export(
-        projekt, _wissensschicht_repo(), _exporte_basis(),
-        heute=date.today().isoformat())
+    try:
+        return kicad_export.run_export(
+            projekt, _wissensschicht_repo(), _exporte_basis(),
+            heute=date.today().isoformat())
+    except Exception as e:
+        raise HTTPException(500, f"KiCad-Export fehlgeschlagen: {e}") from e
 
 
 @router.get("/{projekt_id}/kicad-anleitung")
 def kicad_anleitung_endpunkt(projekt_id: int):
     projekt = _projekt_oder_404(projekt_id)
-    slug = kicad_export.projekt_slug(projekt["name"])
-    pfad = _exporte_basis() / slug / "anleitung.html"
+    ordner_name = kicad_export.projekt_ordner(projekt["id"], projekt["name"])
+    pfad = _exporte_basis() / ordner_name / "anleitung.html"
     if not pfad.exists():
         raise HTTPException(404, _NOCH_KEIN_EXPORT)
     return FileResponse(pfad, media_type="text/html")
@@ -201,8 +204,8 @@ def kicad_anleitung_endpunkt(projekt_id: int):
 @router.post("/{projekt_id}/kicad-oeffnen")
 def kicad_oeffnen_endpunkt(projekt_id: int):
     projekt = _projekt_oder_404(projekt_id)
-    slug = kicad_export.projekt_slug(projekt["name"])
-    schaltplan = _exporte_basis() / slug / f"{slug}.kicad_sch"
+    ordner_name = kicad_export.projekt_ordner(projekt["id"], projekt["name"])
+    schaltplan = _exporte_basis() / ordner_name / f"{ordner_name}.kicad_sch"
     if not schaltplan.exists():
         raise HTTPException(400, _NOCH_KEIN_EXPORT)
     xdg_open = shutil.which("xdg-open")
