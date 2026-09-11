@@ -25,6 +25,19 @@ const PROJEKT_DETAIL = {
   zusammenfassung: { positionen: 2, gedeckt: 1, fehlen: 1, fehlteileKostenEur: 0.5, ohnePreis: 0 },
 };
 
+const KICAD_ERGEBNIS = {
+  ordner: "/exporte/blink-board",
+  schaltplan: "/exporte/blink-board/blink-board.kicad_sch",
+  pcb: "/exporte/blink-board/blink-board.kicad_pcb",
+  anleitung: "/exporte/blink-board/anleitung.html",
+  report: {
+    uebernommen: 1,
+    uebersprungen: [{ referenz: "R7", bezeichnung: "10k 0603", grund: "kein KiCad-Symbol hinterlegt" }],
+    warnungen: ["PCB enthält unbestückte Positionen."],
+    pcbHinweis: "Bauteile sind unverbunden platziert — bitte in KiCad routen.",
+  },
+};
+
 function mockFetch(routen: Record<string, unknown>) {
   vi.stubGlobal("fetch", vi.fn((eingabe: RequestInfo | URL) => {
     const url = String(eingabe);
@@ -62,5 +75,47 @@ describe("ProjektePanel", () => {
     await waitFor(() => expect(screen.getByText("Zuordnen")).toBeInTheDocument());
     expect(screen.getAllByText("Zuordnen")).toHaveLength(1);
     expect(screen.getByText("Fach leuchten")).toBeInTheDocument();
+  });
+
+  it("KiCad-Export ruft kicadExport und rendert die Report-Box mit R7 und Grund", async () => {
+    mockFetch({
+      "/projekte/1/kicad-export": KICAD_ERGEBNIS,
+      "/projekte/1": PROJEKT_DETAIL,
+      "/projekte": PROJEKTE,
+    });
+    render(<ProjektePanel />);
+
+    await screen.findByText(/\[P-1\] Blink-Board/);
+    await userEvent.click(screen.getByText(/\[P-1\] Blink-Board/));
+
+    await waitFor(() => expect(screen.getByText("KiCad-Export")).toBeInTheDocument());
+    await userEvent.click(screen.getByText("KiCad-Export"));
+
+    await waitFor(() => expect(screen.getByText(/✓ 1 Symbole/)).toBeInTheDocument());
+    expect(screen.getByText(/R7/)).toBeInTheDocument();
+    expect(screen.getByText(/kein KiCad-Symbol hinterlegt/)).toBeInTheDocument();
+  });
+
+  it("„Anleitung ansehen“ ruft window.open mit anleitungUrl(id)", async () => {
+    mockFetch({
+      "/projekte/1/kicad-export": KICAD_ERGEBNIS,
+      "/projekte/1": PROJEKT_DETAIL,
+      "/projekte": PROJEKTE,
+    });
+    const oeffnenSpion = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(<ProjektePanel />);
+
+    await screen.findByText(/\[P-1\] Blink-Board/);
+    await userEvent.click(screen.getByText(/\[P-1\] Blink-Board/));
+
+    await waitFor(() => expect(screen.getByText("KiCad-Export")).toBeInTheDocument());
+    await userEvent.click(screen.getByText("KiCad-Export"));
+
+    await waitFor(() => expect(screen.getByText("Anleitung ansehen")).toBeInTheDocument());
+    await userEvent.click(screen.getByText("Anleitung ansehen"));
+
+    expect(oeffnenSpion).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/projekte/1/kicad-anleitung", "_blank");
+    oeffnenSpion.mockRestore();
   });
 });

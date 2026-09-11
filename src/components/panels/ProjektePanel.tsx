@@ -1,13 +1,16 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { fetchTeile, leuchten } from "../../api/bestand";
-import { createProjekt, fetchProjekt, fetchProjekte, positionZuordnen,
-         projektAbbuchen } from "../../api/projekte";
+import { anleitungUrl, createProjekt, fetchProjekt, fetchProjekte, kicadExport,
+         kicadOeffnen, positionZuordnen, projektAbbuchen } from "../../api/projekte";
 import type { TeilKurz } from "../../types/bestand";
-import type { PositionZeile, ProjektDetail, ProjektKurz } from "../../types/projekte";
+import type { KicadExportErgebnis, PositionZeile, ProjektDetail,
+              ProjektKurz } from "../../types/projekte";
 
 const RAND = "1px solid #18181b";
 const GEDAEMPFT = "#a1a1aa";
 const FEHLERFARBE = "#f87171";
+const ERFOLGSFARBE = "#4ade80";
+const WARNFARBE = "#facc15";
 
 const FELD_STIL = { background: "#18181b", border: RAND, borderRadius: 6,
                      color: "#e4e4e7", padding: "6px 8px" };
@@ -60,6 +63,8 @@ export function ProjektePanel() {
   const [zuordnenOffenId, setZuordnenOffenId] = useState<number | null>(null);
   const [zuordnenWert, setZuordnenWert] = useState("");
   const [aufgeklappt, setAufgeklappt] = useState<Record<number, boolean>>({});
+  const [kicadLaeuft, setKicadLaeuft] = useState(false);
+  const [kicadErgebnis, setKicadErgebnis] = useState<KicadExportErgebnis | null>(null);
 
   const laden = useCallback(() => {
     fetchProjekte()
@@ -141,6 +146,27 @@ export function ProjektePanel() {
 
   const preisUmschalten = (posId: number) =>
     setAufgeklappt((p) => ({ ...p, [posId]: !p[posId] }));
+
+  const kicadExportStarten = () => {
+    if (!auswahl) return;
+    setKicadLaeuft(true);
+    kicadExport(auswahl.id)
+      .then((r) => { setKicadErgebnis(r); setFehler(""); })
+      .catch((e) => setFehler(e.message))
+      .finally(() => setKicadLaeuft(false));
+  };
+
+  const kicadAnleitungAnsehen = () => {
+    if (!auswahl) return;
+    window.open(anleitungUrl(auswahl.id), "_blank");
+  };
+
+  const kicadInOeffnen = () => {
+    if (!auswahl) return;
+    kicadOeffnen(auswahl.id)
+      .then((r) => { setMeldung(r.meldung); setFehler(""); })
+      .catch((e) => setFehler(e.message));
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
@@ -317,6 +343,47 @@ export function ProjektePanel() {
                   ))}
                 </tbody>
               </table>
+
+              {auswahl.positionen.length > 0 && (
+                <div>
+                  <h3 style={{ margin: "0 0 8px" }}>KiCad</h3>
+                  <button type="button" onClick={kicadExportStarten} disabled={kicadLaeuft}
+                    style={KNOPF_STIL}>
+                    {kicadLaeuft ? "exportiere …" : "KiCad-Export"}
+                  </button>
+
+                  {kicadErgebnis && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+                      <div style={{ color: ERFOLGSFARBE }}>
+                        {`✓ ${kicadErgebnis.report.uebernommen} Symbole`}
+                      </div>
+                      {kicadErgebnis.report.uebersprungen.map((u) => (
+                        <div key={u.referenz} style={{ color: WARNFARBE }}>
+                          {`⚠ ${u.referenz} — ${u.grund}`}
+                        </div>
+                      ))}
+                      {kicadErgebnis.report.warnungen.map((w, i) => (
+                        <div key={i} style={{ color: GEDAEMPFT }}>{w}</div>
+                      ))}
+                      {kicadErgebnis.report.pcbHinweis && (
+                        <div style={{ color: GEDAEMPFT }}>{kicadErgebnis.report.pcbHinweis}</div>
+                      )}
+                      <div style={{ fontFamily: "monospace", color: GEDAEMPFT }}>
+                        {kicadErgebnis.ordner}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <button type="button" onClick={kicadAnleitungAnsehen}
+                          style={KNOPF_STIL_LEISE}>
+                          Anleitung ansehen
+                        </button>
+                        <button type="button" onClick={kicadInOeffnen} style={KNOPF_STIL_LEISE}>
+                          In KiCad öffnen
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

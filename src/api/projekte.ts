@@ -1,5 +1,6 @@
 import { anfrage } from "./anfrage";
-import type { ProjektDetail, ProjektKurz } from "../types/projekte";
+import { API_BASE_URL } from "./config";
+import type { KicadExportErgebnis, ProjektDetail, ProjektKurz } from "../types/projekte";
 
 export const fetchProjekte = (): Promise<ProjektKurz[]> => anfrage("/projekte");
 
@@ -27,3 +28,12 @@ export const positionZuordnen = (
 
 export const projektAbbuchen = (projektId: number): Promise<{ meldung: string }> =>
   anfrage(`/projekte/${projektId}/abbuchen`, { method: "POST", body: JSON.stringify({}) });
+
+export const kicadExport = (projektId: number): Promise<KicadExportErgebnis> =>
+  anfrage(`/projekte/${projektId}/kicad-export`, { method: "POST", body: JSON.stringify({}) });
+
+export const kicadOeffnen = (projektId: number): Promise<{ meldung: string }> =>
+  anfrage(`/projekte/${projektId}/kicad-oeffnen`, { method: "POST", body: JSON.stringify({}) });
+
+export const anleitungUrl = (projektId: number): string =>
+  `${API_BASE_URL}/projekte/${projektId}/kicad-anleitung`;

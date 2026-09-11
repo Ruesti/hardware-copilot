@@ -45,3 +45,24 @@ export interface ProjektDetail {
   positionen: PositionZeile[];
   zusammenfassung: Zusammenfassung;
 }
+
+export interface KicadUebersprungen {
+  referenz: string;
+  bezeichnung: string;
+  grund: string;
+}
+
+export interface KicadReport {
+  uebernommen: number;
+  uebersprungen: KicadUebersprungen[];
+  warnungen: string[];
+  pcbHinweis: string | null;
+}
+
+export interface KicadExportErgebnis {
+  ordner: string;
+  schaltplan: string | null;
+  pcb: string | null;
+  anleitung: string;
+  report: KicadReport;
+}
