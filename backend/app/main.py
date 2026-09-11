@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .motor import router as motor_router
-from .routers import bestand, wissen
+from .routers import bestand, projekte, wissen
 
 app = FastAPI(title="Hardware-Copilot Cockpit")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(bestand.router)
+app.include_router(projekte.router)
 app.include_router(wissen.router)
 app.include_router(motor_router.router)
 

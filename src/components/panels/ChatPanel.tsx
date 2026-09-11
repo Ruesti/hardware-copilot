@@ -114,6 +114,11 @@ export function ChatPanel() {
       if (e.typ === "werkzeug_fertig" && e.name.startsWith("mcp__wissensschicht")) {
         window.dispatchEvent(new CustomEvent("wissen-geaendert"));
       }
+      if (e.typ === "werkzeug_fertig" &&
+          (e.name.startsWith("mcp__bestand__projekt") ||
+           e.name.startsWith("mcp__bestand__position"))) {
+        window.dispatchEvent(new CustomEvent("projekt-geaendert"));
+      }
     }, setVerbunden);
     verbindungRef.current = verbindung;
     return () => verbindung.schliessen();

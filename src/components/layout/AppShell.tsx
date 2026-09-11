@@ -1,11 +1,13 @@
 import { BestandPanel } from "../panels/BestandPanel";
 import { ChatPanel } from "../panels/ChatPanel";
+import { ProjektePanel } from "../panels/ProjektePanel";
 import { WissensPanel } from "../panels/WissensPanel";
 
-export type TabId = "bestand" | "wissen" | "chat";
+export type TabId = "bestand" | "projekte" | "wissen" | "chat";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "bestand", label: "Bestand" },
+  { id: "projekte", label: "Projekte" },
   { id: "wissen", label: "Wissen" },
   { id: "chat", label: "Chat" },
 ];
@@ -32,7 +34,10 @@ export function AppShell({ tab, onTabChange }: Props) {
         </nav>
       </header>
       <main style={{ flex: 1, minHeight: 0, display: "flex" }}>
-        {tab === "bestand" ? <BestandPanel /> : tab === "wissen" ? <WissensPanel /> : <ChatPanel />}
+        {tab === "bestand" ? <BestandPanel />
+          : tab === "projekte" ? <ProjektePanel />
+          : tab === "wissen" ? <WissensPanel />
+          : <ChatPanel />}
       </main>
     </div>
   );
