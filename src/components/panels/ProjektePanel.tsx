@@ -91,6 +91,9 @@ export function ProjektePanel() {
     return () => window.removeEventListener("projekt-geaendert", h);
   }, [laden, detailLaden, auswahlId]);
 
+  // Projektwechsel: vorheriger KiCad-Report gehört zum alten Projekt, nicht zum neuen.
+  useEffect(() => { setKicadErgebnis(null); }, [auswahlId]);
+
   const anlegen = (ev: React.FormEvent) => {
     ev.preventDefault();
     createProjekt(name, beschreibung || undefined)

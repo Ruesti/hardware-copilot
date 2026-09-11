@@ -25,6 +25,18 @@ const PROJEKT_DETAIL = {
   zusammenfassung: { positionen: 2, gedeckt: 1, fehlen: 1, fehlteileKostenEur: 0.5, ohnePreis: 0 },
 };
 
+const PROJEKTE_ZWEI = [
+  { id: 1, name: "Blink-Board", status: "offen", positionen: 2, fehlen: 1 },
+  { id: 2, name: "Zweites Board", status: "offen", positionen: 1, fehlen: 0 },
+];
+
+const PROJEKT_B_DETAIL = {
+  id: 2, name: "Zweites Board", beschreibung: "", status: "offen",
+  angelegtAm: "2026-09-02",
+  positionen: [POSITION_DA],
+  zusammenfassung: { positionen: 1, gedeckt: 1, fehlen: 0, fehlteileKostenEur: 0, ohnePreis: 0 },
+};
+
 const KICAD_ERGEBNIS = {
   ordner: "/exporte/blink-board",
   schaltplan: "/exporte/blink-board/blink-board.kicad_sch",
@@ -117,5 +129,29 @@ describe("ProjektePanel", () => {
     expect(oeffnenSpion).toHaveBeenCalledWith(
       "http://127.0.0.1:8000/projekte/1/kicad-anleitung", "_blank");
     oeffnenSpion.mockRestore();
+  });
+
+  it("Projektwechsel setzt die KiCad-Report-Box zurück", async () => {
+    mockFetch({
+      "/projekte/1/kicad-export": KICAD_ERGEBNIS,
+      "/projekte/2": PROJEKT_B_DETAIL,
+      "/projekte/1": PROJEKT_DETAIL,
+      "/projekte": PROJEKTE_ZWEI,
+    });
+    render(<ProjektePanel />);
+
+    await screen.findByText(/\[P-1\] Blink-Board/);
+    await userEvent.click(screen.getByText(/\[P-1\] Blink-Board/));
+
+    await waitFor(() => expect(screen.getByText("KiCad-Export")).toBeInTheDocument());
+    await userEvent.click(screen.getByText("KiCad-Export"));
+    await waitFor(() => expect(screen.getByText(/✓ 1 Symbole/)).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText(/\[P-2\] Zweites Board/));
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 von 1 Positionen im Bestand/)).toBeInTheDocument());
+    expect(screen.queryByText(/✓ 1 Symbole/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/R7/)).not.toBeInTheDocument();
   });
 });
