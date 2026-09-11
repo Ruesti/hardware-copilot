@@ -6,16 +6,23 @@ Dienst, damit App und MCP dieselbe Sprache sprechen. Wie bestand.py.
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from bestand.projekte import ProjektDienst
 from bestand.service import BestandsFehler
 
+from ..kicad import export as kicad_export
 from ..schemas import ApiModel
 
 router = APIRouter(prefix="/projekte", tags=["projekte"])
+
+_NOCH_KEIN_EXPORT = "Noch kein Export — erst KiCad-Export ausführen."
 
 
 def _projekt_dienst() -> ProjektDienst:
@@ -23,9 +30,27 @@ def _projekt_dienst() -> ProjektDienst:
     return ProjektDienst(pfad)
 
 
+def _wissensschicht_repo() -> Path:
+    return Path(os.environ.get("WISSENSSCHICHT_REPO",
+                               str(Path.home() / "projects/hardware-wissen")))
+
+
+def _exporte_basis() -> Path:
+    return Path(os.environ.get(
+        "HARDWARE_COPILOT_EXPORTE", str(Path.home() / "hardware-copilot-exporte")
+    )).expanduser()
+
+
 def _ist_404(meldung: str) -> bool:
     return ("Kein Projekt" in meldung or "Kein Teil" in meldung
             or "Keine Position" in meldung)
+
+
+def _projekt_oder_404(projekt_id: int) -> dict:
+    try:
+        return _projekt_dienst().projekt_daten(projekt_id)
+    except BestandsFehler as e:
+        raise HTTPException(404, str(e)) from e
 
 
 class ProjektKurz(ApiModel):
@@ -93,6 +118,27 @@ class ZuordnenWunsch(ApiModel):
     teil_id: int
 
 
+class UebersprungenOut(ApiModel):
+    referenz: str
+    bezeichnung: str
+    grund: str
+
+
+class KicadReportOut(ApiModel):
+    uebernommen: int
+    uebersprungen: list[UebersprungenOut]
+    warnungen: list[str]
+    pcb_hinweis: str | None
+
+
+class KicadExportOut(ApiModel):
+    ordner: str
+    schaltplan: str | None
+    pcb: str | None
+    anleitung: str
+    report: KicadReportOut
+
+
 @router.get("", response_model=list[ProjektKurz], response_model_by_alias=True)
 def projekte_liste():
     return _projekt_dienst().projekte_daten()
@@ -131,3 +177,36 @@ def projekt_abbuchen(projekt_id: int):
     except BestandsFehler as e:
         raise HTTPException(404 if _ist_404(str(e)) else 400, str(e)) from e
     return {"meldung": meldung}
+
+
+@router.post("/{projekt_id}/kicad-export", response_model=KicadExportOut,
+             response_model_by_alias=True)
+def kicad_export_endpunkt(projekt_id: int):
+    projekt = _projekt_oder_404(projekt_id)
+    return kicad_export.run_export(
+        projekt, _wissensschicht_repo(), _exporte_basis(),
+        heute=date.today().isoformat())
+
+
+@router.get("/{projekt_id}/kicad-anleitung")
+def kicad_anleitung_endpunkt(projekt_id: int):
+    projekt = _projekt_oder_404(projekt_id)
+    slug = kicad_export.projekt_slug(projekt["name"])
+    pfad = _exporte_basis() / slug / "anleitung.html"
+    if not pfad.exists():
+        raise HTTPException(404, _NOCH_KEIN_EXPORT)
+    return FileResponse(pfad, media_type="text/html")
+
+
+@router.post("/{projekt_id}/kicad-oeffnen")
+def kicad_oeffnen_endpunkt(projekt_id: int):
+    projekt = _projekt_oder_404(projekt_id)
+    slug = kicad_export.projekt_slug(projekt["name"])
+    schaltplan = _exporte_basis() / slug / f"{slug}.kicad_sch"
+    if not schaltplan.exists():
+        raise HTTPException(400, _NOCH_KEIN_EXPORT)
+    xdg_open = shutil.which("xdg-open")
+    if not xdg_open:
+        raise HTTPException(400, "xdg-open nicht verfügbar")
+    subprocess.Popen([xdg_open, str(schaltplan)])
+    return {"meldung": f"KiCad-Öffnen angestoßen: {schaltplan}"}
